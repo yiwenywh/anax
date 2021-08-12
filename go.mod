@@ -14,7 +14,6 @@ require (
 	github.com/docker/docker-credential-helpers v0.6.3 // indirect
 	github.com/docker/go-connections v0.4.1-0.20180821093606-97c2040d34df // indirect
 	github.com/eclipse/paho.mqtt.golang v1.2.0 // indirect
-	github.com/etcd-io/bbolt v1.3.3-0.20190528202153-2eb7227adea1 // indirect
 	github.com/fsouza/go-dockerclient v1.7.2
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
 	github.com/golang/protobuf v1.4.0 // indirect
