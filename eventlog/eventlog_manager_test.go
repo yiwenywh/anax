@@ -4,7 +4,7 @@ package eventlog
 
 import (
 	"flag"
-	"github.com/boltdb/bolt"
+	bolt "go.etcd.io/bbolt"
 	"github.com/open-horizon/anax/persistence"
 	"github.com/stretchr/testify/assert"
 	"io/ioutil"

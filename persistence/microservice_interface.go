@@ -2,7 +2,7 @@ package persistence
 
 import (
 	"fmt"
-	"github.com/boltdb/bolt"
+	bolt "go.etcd.io/bbolt"
 	"github.com/open-horizon/anax/exchangecommon"
 	"github.com/open-horizon/anax/policy"
 )

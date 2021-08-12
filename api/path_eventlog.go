@@ -2,7 +2,7 @@ package api
 
 import (
 	"fmt"
-	"github.com/boltdb/bolt"
+	bolt "go.etcd.io/bbolt"
 	"github.com/golang/glog"
 	"github.com/open-horizon/anax/eventlog"
 	"github.com/open-horizon/anax/persistence"

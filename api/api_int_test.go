@@ -17,7 +17,7 @@ import (
 	"time"
 
 	"github.com/adams-sarah/test2doc/test"
-	"github.com/boltdb/bolt"
+	bolt "go.etcd.io/bbolt"
 	"github.com/golang/glog"
 	"github.com/gorilla/mux"
 	"github.com/open-horizon/anax/apicommon"
