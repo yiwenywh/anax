@@ -3,7 +3,6 @@ package persistence
 import (
 	"encoding/json"
 	"fmt"
-	bolt "go.etcd.io/bbolt"
 	"github.com/golang/glog"
 	"github.com/open-horizon/anax/cutil"
 	"github.com/open-horizon/anax/externalpolicy"
@@ -241,39 +240,8 @@ func HydrateConcreteAttribute(v []byte) (Attribute, error) {
 }
 
 // FindAttributeByKey is used to fetch a single attribute by its primary key
-func FindAttributeByKey(db *bolt.DB, id string) (*Attribute, error) {
-	var attr Attribute
-	var bucket *bolt.Bucket
-
-	readErr := db.View(func(tx *bolt.Tx) error {
-		bucket = tx.Bucket([]byte(ATTRIBUTES))
-		if bucket != nil {
-
-			v := bucket.Get([]byte(id))
-			if v != nil {
-				var err error
-				attr, err = HydrateConcreteAttribute(v)
-				if err != nil {
-					return err
-				} else if attr == nil {
-					return nil
-				}
-			}
-		}
-
-		return nil
-	})
-
-	if readErr != nil {
-		if bucket == nil {
-			// no bucket created yet so record not found
-			return nil, nil
-		}
-
-		return nil, readErr
-	}
-
-	return &attr, nil
+func FindAttributeByKey(db AgentDatabase, id string) (*Attribute, error) {
+	return db.FindAttributeByKey(id)
 }
 
 // get all the attribute that the given this service can use.
@@ -282,31 +250,7 @@ func FindAttributeByKey(db *bolt.DB, id string) (*Attribute, error) {
 // Otherwise, if an element in the attrubute's ServiceSpecs array equals to ServiceSpec{serviceUrl, org}
 // the attribute will be included.
 func FindApplicableAttributes(db *bolt.DB, serviceUrl string, org string) ([]Attribute, error) {
-
-	filteredAttrs := []Attribute{}
-
-	return filteredAttrs, db.View(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket([]byte(ATTRIBUTES))
-
-		if bucket == nil {
-			return nil
-		}
-
-		return bucket.ForEach(func(k, v []byte) error {
-			attr, err := HydrateConcreteAttribute(v)
-			if err != nil {
-				return err
-			} else if attr != nil {
-				serviceSpecs := GetAttributeServiceSpecs(&attr)
-				if serviceSpecs == nil {
-					filteredAttrs = append(filteredAttrs, attr)
-				} else if serviceSpecs.SupportService(serviceUrl, org) {
-					filteredAttrs = append(filteredAttrs, attr)
-				}
-			}
-			return nil
-		})
-	})
+	return db.FindApplicableAttributes(serviceUrl, org)
 }
 
 // This function is used to convert the persistent attributes for a service to an env var map.
@@ -398,19 +342,19 @@ func AttributesToEnvvarMap(attributes []Attribute, envvars map[string]string, pr
 	return envvars, nil
 }
 
-func FindConflictingAttributes(db *bolt.DB, attribute *Attribute) (*Attribute, error) {
+func FindConflictingAttributes(db AgentDatabase, attribute *Attribute) (*Attribute, error) {
 	var err error
 	var common []Attribute
 	serviceSpecs := GetAttributeServiceSpecs(attribute)
 
 	if serviceSpecs == nil || len(*serviceSpecs) == 0 {
-		common, err = FindApplicableAttributes(db, "", "")
+		common, err = db.FindApplicableAttributes("", "")
 		if err != nil {
 			return nil, err
 		}
 	} else {
 		for _, sp := range *serviceSpecs {
-			common, err = FindApplicableAttributes(db, sp.Url, sp.Org)
+			common, err = db.FindApplicableAttributes(sp.Url, sp.Org)
 			if err != nil {
 				return nil, err
 			}
@@ -446,7 +390,7 @@ type ConflictingAttributeFound struct {
 func (e ConflictingAttributeFound) Error() string { return e.msg }
 
 // N.B. It's the caller's responsibility to ensure the attr.ServiceSpecs are deduplicated; use the ServiceSpecs.AddServiceSpec() function to keep the slice clean
-func SaveOrUpdateAttribute(db *bolt.DB, attr Attribute, id string, permitPartialOverwrite bool) (*Attribute, error) {
+func SaveOrUpdateAttribute(db AgentDatabase, attr Attribute, id string, permitPartialOverwrite bool) (*Attribute, error) {
 	var ret *Attribute
 
 	if id == "" {
@@ -468,7 +412,7 @@ func SaveOrUpdateAttribute(db *bolt.DB, attr Attribute, id string, permitPartial
 	} else {
 		// updating and existing must be found; may be a partial overwrite
 
-		existing, err := FindAttributeByKey(db, id)
+		existing, err := db.FindAttributeByKey(id)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to search for existing attribute: %v", err)
 		}
@@ -505,39 +449,12 @@ func SaveOrUpdateAttribute(db *bolt.DB, attr Attribute, id string, permitPartial
 		(*ret).GetMeta().Publishable = &pT
 	}
 
-	writeErr := db.Update(func(tx *bolt.Tx) error {
-		bucket, err := tx.CreateBucketIfNotExists([]byte(ATTRIBUTES))
-		if err != nil {
-			return err
-		}
-		serial, err := json.Marshal(ret)
-		if err != nil {
-			return fmt.Errorf("Failed to serialize attribute: %v. Error: %v", ret, err)
-		}
-		return bucket.Put([]byte(id), serial)
-	})
+	writeErr := db.UpdateAttribute(attributeid, ret)
 
 	return ret, writeErr
 }
 
-func DeleteAttribute(db *bolt.DB, id string) (*Attribute, error) {
-
-	existing, err := FindAttributeByKey(db, id)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to search for existing attribute: %v", err)
-	}
-
-	if *existing == nil {
-		return nil, nil
-	}
-
-	delError := db.Update(func(tx *bolt.Tx) error {
-		bucket, err := tx.CreateBucketIfNotExists([]byte(ATTRIBUTES))
-		if err != nil {
-			return err
-		}
-		return bucket.Delete([]byte(id))
-	})
-
-	return existing, delError
+func DeleteAttribute(db AgentDatabase, id string) (*Attribute, error) {
+	return db.DeleteAttribute(id)
 }
+
