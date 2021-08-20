@@ -2,6 +2,8 @@ package events
 
 import (
 	"fmt"
+	"github.com/golang/glog"
+	"github.com/open-horizon/anax/abstractprotocol"
 	"github.com/open-horizon/anax/containermessage"
 	"github.com/open-horizon/anax/cutil"
 	"github.com/open-horizon/anax/persistence"
@@ -119,6 +121,9 @@ const (
 
 	// Secret related
 	UPDATED_SECRETS EventId = "SECRET_UPDATES"
+
+	// ESS related
+	ESS_UNCONFIG EventId = "ESS_UNCONFIG"
 )
 
 type EndContractCause string
@@ -1446,15 +1451,25 @@ func (m *ExchangeDeviceMessage) ProtocolMessage() string {
 }
 
 func (m *ExchangeDeviceMessage) ShortProtocolMessage() string {
-	end := 200
-	if len(m.protocolMessage) < end {
-		end = len(m.protocolMessage)
-	}
-	return m.protocolMessage[:end]
+	return cutil.TruncateDisplayString(m.protocolMessage, 200)
 }
 
 func (m ExchangeDeviceMessage) String() string {
-	return fmt.Sprintf("Event: %v, AgbotId: %v, ProtocolMessage: %v, Time: %v, ExchangeMessage: %s", m.event, m.agbotId, m.protocolMessage, m.Time, m.exchangeMessage)
+	pm := m.protocolMessage
+	// Try to demarshal protocol message into Proposal struct
+	if glog.V(5) {
+		if newProp, err := abstractprotocol.DemarshalProposal(pm); err == nil {
+			// check if protocol message is a byte-encoded Proposal struct
+			if len(newProp.AgreementId()) > 0 {
+				// if it is a proposal, obscure the secrets
+				if pm, err = abstractprotocol.ObscureProposalSecret(pm); err != nil {
+					// something went wrong, send empty string to ensure secret protection
+					pm = ""
+				}
+			}
+		}
+	}
+	return fmt.Sprintf("Event: %v, AgbotId: %v, ProtocolMessage: %v, Time: %v, ExchangeMessage: %s", m.event, m.agbotId, pm, m.Time, m.exchangeMessage)
 }
 
 func (m ExchangeDeviceMessage) ShortString() string {
@@ -1740,6 +1755,36 @@ func (n NodeShutdownCompleteMessage) Err() string {
 
 func NewNodeShutdownCompleteMessage(id EventId, errorMsg string) *NodeShutdownCompleteMessage {
 	return &NodeShutdownCompleteMessage{
+		event: Event{
+			Id: id,
+		},
+		err: errorMsg,
+	}
+}
+
+type SyncServiceCleanedUpMessage struct {
+	event Event
+	err   string
+}
+
+func (n *SyncServiceCleanedUpMessage) Event() Event {
+	return n.event
+}
+
+func (n SyncServiceCleanedUpMessage) String() string {
+	return n.ShortString()
+}
+
+func (n SyncServiceCleanedUpMessage) ShortString() string {
+	return fmt.Sprintf("Event: %v, Error: %v", n.event, n.err)
+}
+
+func (n SyncServiceCleanedUpMessage) Err() string {
+	return n.err
+}
+
+func NewSyncServiceCleanedUpMessage(id EventId, errorMsg string) *SyncServiceCleanedUpMessage {
+	return &SyncServiceCleanedUpMessage{
 		event: Event{
 			Id: id,
 		},

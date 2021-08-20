@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/golang/glog"
 	"github.com/open-horizon/anax/config"
+	"github.com/open-horizon/anax/cutil"
 	"github.com/open-horizon/anax/externalpolicy"
 	"github.com/open-horizon/anax/persistence"
 	"github.com/open-horizon/anax/policy"
@@ -502,7 +503,7 @@ type PostMessage struct {
 }
 
 func (p PostMessage) String() string {
-	return fmt.Sprintf("TTL: %v, Message: %x...", p.TTL, p.Message[:32])
+	return fmt.Sprintf("TTL: %v, Message: %x...", p.TTL, cutil.TruncateDisplayString(string(p.Message), 32))
 }
 
 func CreatePostMessage(msg []byte, ttl int) *PostMessage {
@@ -550,7 +551,7 @@ type DeviceMessage struct {
 }
 
 func (d DeviceMessage) String() string {
-	return fmt.Sprintf("MsgId: %v, AgbotId: %v, AgbotPubKey %v, Message %v, TimeSent %v", d.MsgId, d.AgbotId, d.AgbotPubKey, d.Message[:32], d.TimeSent)
+	return fmt.Sprintf("MsgId: %v, AgbotId: %v, AgbotPubKey %v, Message %v, TimeSent %v", d.MsgId, d.AgbotId, d.AgbotPubKey, cutil.TruncateDisplayString(string(d.Message), 32), d.TimeSent)
 }
 
 type GetDeviceMessageResponse struct {
@@ -1250,8 +1251,6 @@ func GetObjectSigningKeys(ec ExchangeContext, oType string, oURL string, oOrg st
 	var oIndex string
 	var targetURL string
 
-	var cacheMapKey string
-
 	switch oType {
 	case PATTERN:
 		pat_resp, err := GetPatterns(ec.GetHTTPFactory(), oOrg, oURL, ec.GetExchangeURL(), ec.GetExchangeId(), ec.GetExchangeToken())
@@ -1277,13 +1276,12 @@ func GetObjectSigningKeys(ec ExchangeContext, oType string, oURL string, oOrg st
 			return nil, errors.New(rpclogString(fmt.Sprintf("unable to find the service %v %v %v %v.", oURL, oOrg, oVersion, oArch)))
 		}
 
-		cachedKeys := GetServiceKeysFromCache(oOrg, oURL, oArch, oVersion)
+		oIndex = ms_id
+		cachedKeys := GetServiceKeysFromCache(oIndex)
 		if cachedKeys != nil {
 			return *cachedKeys, nil
 		}
-		cacheMapKey = ServicePolicyCacheMapKey(oOrg, oURL, oArch, oVersion)
 
-		oIndex = ms_id
 		targetURL = fmt.Sprintf("%vorgs/%v/services/%v/keys", ec.GetExchangeURL(), oOrg, GetId(oIndex))
 
 	default:
@@ -1363,7 +1361,7 @@ func GetObjectSigningKeys(ec ExchangeContext, oType string, oURL string, oOrg st
 	}
 
 	if oType == SERVICE {
-		UpdateCache(cacheMapKey, SVC_KEY_TYPE_CACHE, ret)
+		UpdateCache(oIndex, SVC_KEY_TYPE_CACHE, ret)
 	}
 
 	return ret, nil

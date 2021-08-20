@@ -508,7 +508,7 @@ func VerifySecretBindingForService(svcSpec *ServiceSpec,
 		return false, "", nil, nil, "", nil, NewCompCheckError(fmt.Errorf(msgPrinter.Sprintf("The input service spec object cannot be null.")), COMPCHECK_INPUT_ERROR)
 	}
 
-	svc_map, sDef, sId, err := serviceDefResolverHandler(svcSpec.ServiceUrl, svcSpec.ServiceOrgid, svcSpec.ServiceVersionRange, svcSpec.ServiceArch)
+	_, svc_map, sDef, sId, err := serviceDefResolverHandler(svcSpec.ServiceUrl, svcSpec.ServiceOrgid, svcSpec.ServiceVersionRange, svcSpec.ServiceArch)
 	if err != nil {
 		return false, "", nil, nil, "", nil, NewCompCheckError(fmt.Errorf(msgPrinter.Sprintf("Error retrieving service from the Exchange for %v. %v", svcSpec, err)), COMPCHECK_EXCHANGE_ERROR)
 	}
@@ -781,6 +781,11 @@ func VerifyVaultSecrets_strict(secretBinding []exchangecommon.SecretBinding, nod
 func VerifySingleVaultSecret(vaultSecretName string, nodeOrg string, agbotURL string,
 	vaultSecretExists exchange.VaultSecretExistsHandler, msgPrinter *message.Printer) (bool, error) {
 
+	// get default message printer if nil
+	if msgPrinter == nil {
+		msgPrinter = i18n.GetMessagePrinter()
+	}
+
 	// parse the name
 	userName, sName, err_parse := ParseVaultSecretName(vaultSecretName, msgPrinter)
 	if err_parse != nil {
@@ -806,6 +811,11 @@ func VerifySingleVaultSecret(vaultSecretName string, nodeOrg string, agbotURL st
 // For public pattern, it is the org name of the node.
 func ParseVaultSecretName(secretName string, msgPrinter *message.Printer) (string, string, error) {
 
+	// get default message printer if nil
+	if msgPrinter == nil {
+		msgPrinter = i18n.GetMessagePrinter()
+	}
+
 	// cannot be empty string
 	if secretName == "" {
 		return "", "", fmt.Errorf(msgPrinter.Sprintf("The binding secret name cannot be an empty string. The valid formats are: '<secretname>' for the organization level secret and 'user/<username>/<secretname>' for the user level secret."))
@@ -827,11 +837,6 @@ func ParseVaultSecretName(secretName string, msgPrinter *message.Printer) (strin
 			// case: /usr/myusername/mysecrte
 			return parts[2], strings.Join(parts[3:], "/"), nil
 		}
-	}
-
-	// get default message printer if nil
-	if msgPrinter == nil {
-		msgPrinter = i18n.GetMessagePrinter()
 	}
 
 	return "", "", fmt.Errorf(msgPrinter.Sprintf("Invalid format for the binding secret name: %v. The valid formats are: '<secretname>' for the organization level secret and 'user/<username>/<secretname>' for the user level secret.", secretName))

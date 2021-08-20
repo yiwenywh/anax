@@ -11,7 +11,7 @@ import (
 var HORIZON_VERSION = "local build"
 
 // the minimum exchange version
-const MINIMUM_EXCHANGE_VERSION = "2.44.0"
+const MINIMUM_EXCHANGE_VERSION = "2.81.0"
 
 // the preferred exchange version
 const PREFERRED_EXCHANGE_VERSION = "2.81.0"

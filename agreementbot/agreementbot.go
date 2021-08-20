@@ -259,9 +259,24 @@ func (w *AgreementBotWorker) NewEvent(incoming events.Message) {
 		}
 
 	case *events.SecretUpdatesMessage:
-		// Queue up the secret updates for the governance function the next time it runs.
 		msg, _ := incoming.(*events.SecretUpdatesMessage)
 		sus := msg.GetSecretUpdates()
+
+		// For each affected policy, make sure the agbot performs a search of this policy again.
+		// For affected patterns, just ensure that the agbot does a search again.
+		// The updated secret could have been created, enabling the policy to be deployable to nodes.
+		for _, su := range sus.Updates {
+			for _, policyName := range su.PolicyNames {
+				w.nodeSearch.AddRetry(policyName, 0)
+			}
+
+			// Tell the agbot to search again if there are affected patterns.
+			if len(su.PatternNames) != 0 {
+				w.nodeSearch.SetRescanNeeded()
+			}
+		}
+
+		// Queue up the secret updates for the governance function so that it can update agreements, the next time it runs.
 		w.secretUpdateManager.SetUpdateEvent(&sus)
 
 	default: //nothing
@@ -312,6 +327,9 @@ func (w *AgreementBotWorker) Initialize() bool {
 
 	// Start the go thread that heartbeats to the database.
 	w.DispatchSubworker(DATABASE_HEARTBEAT, w.databaseHeartBeat, int(w.BaseWorker.Manager.Config.GetPartitionStale()/3), false)
+
+	// Login the agbot to the secrets provider.
+	w.secretsProviderMaintenance()
 
 	// Start the go thread that ensures the secrets provider remains logged in.
 	if w.secretProvider != nil {
@@ -1483,6 +1501,10 @@ func (w *AgreementBotWorker) messageKeyCheck() int {
 
 // This function is called by the secrets provider sub worker to ensure that the secrets provider remains logged in.
 func (w *AgreementBotWorker) secretsProviderMaintenance() int {
+
+	if w.secretProvider == nil {
+		return 0
+	}
 
 	if !w.secretProvider.IsReady() {
 		if err := w.secretProvider.Login(); err != nil {

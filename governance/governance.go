@@ -19,6 +19,7 @@ import (
 	"github.com/open-horizon/anax/persistence"
 	"github.com/open-horizon/anax/policy"
 	"github.com/open-horizon/anax/producer"
+	"github.com/open-horizon/anax/semanticversion"
 	"github.com/open-horizon/anax/worker"
 	"net/http"
 	"strconv"
@@ -55,6 +56,7 @@ type GovernanceWorker struct {
 	limitedRetryEC    exchange.ExchangeContext
 	exchErrors        cache.Cache
 	noworkDispatch    int64 // The last time the NoWorkHandler was dispatched.
+	essCleanedUp      bool
 }
 
 func NewGovernanceWorker(name string, cfg *config.HorizonConfig, db *bolt.DB, pm *policy.PolicyManager) *GovernanceWorker {
@@ -82,6 +84,7 @@ func NewGovernanceWorker(name string, cfg *config.HorizonConfig, db *bolt.DB, pm
 		limitedRetryEC:  lrec,
 		exchErrors:      cache.NewSimpleMapCache(),
 		noworkDispatch:  time.Now().Unix(),
+		essCleanedUp:    false,
 	}
 
 	// Start the worker and set the no work interval to 10 seconds.
@@ -309,6 +312,10 @@ func (w *GovernanceWorker) NewEvent(incoming events.Message) {
 		case events.UNCONFIGURE_COMPLETE:
 			w.Commands <- worker.NewTerminateCommand("shutdown")
 		}
+
+	case *events.SyncServiceCleanedUpMessage:
+		w.essCleanedUp = true
+		glog.V(5).Infof(logString(fmt.Sprintf("Receive SyncServiceCleanedUpMessage event, set ess.CleanUp to %t for governance worker.", w.essCleanedUp)))
 
 	case *events.NodeHeartbeatStateChangeMessage:
 		msg, _ := incoming.(*events.NodeHeartbeatStateChangeMessage)
@@ -1400,12 +1407,14 @@ func (w *GovernanceWorker) NoWorkHandler() {
 
 	// When all subworkers are down, start the shutdown process.
 	if w.IsWorkerShuttingDown() && w.ShuttingDownCmd != nil {
-		if w.AreAllSubworkersTerminated() {
+		if w.AreAllSubworkersTerminated() && w.essCleanedUp {
 			glog.V(5).Infof(logString(fmt.Sprintf("GovernanceWorker initiating async shutdown.")))
 			cmd := w.ShuttingDownCmd
 			// This is one of the few go routines that should NOT be abstracted as a subworker.
 			go w.nodeShutdown(cmd)
 			w.ShuttingDownCmd = nil
+		} else if !w.essCleanedUp {
+			glog.V(5).Infof(logString(fmt.Sprintf("GovernanceWorker waiting for ESS to finish cleanup.")))
 		} else {
 			glog.V(5).Infof(logString(fmt.Sprintf("GovernanceWorker waiting for subworkers to terminate.")))
 		}
@@ -1530,7 +1539,12 @@ func (w *GovernanceWorker) RecordReply(proposal abstractprotocol.Proposal, proto
 		if msdefs, err := persistence.FindMicroserviceDefs(w.db, msFilters); err != nil {
 			return fmt.Errorf(logString(fmt.Sprintf("Error finding service definition from the local db for %v. %v", serviceId, err)))
 		} else if msdefs == nil || len(msdefs) == 0 {
-			if msdef, err = microservice.CreateMicroserviceDefWithServiceDef(w.db, serviceDef, serviceId); err != nil {
+			vExp, err1 := semanticversion.Version_Expression_Factory(serviceDef.Version)
+			if err1 != nil {
+				return fmt.Errorf("VersionRange %v cannot be converted to a version expression, error %v", serviceDef.Version, err1)
+			}
+
+			if msdef, err = microservice.CreateMicroserviceDefWithServiceDef(w.db, serviceDef, serviceId, vExp.Get_expression()); err != nil {
 				return fmt.Errorf(logString(fmt.Sprintf("failed to create service definition for %v for agreement %v: %v", serviceId, proposal.AgreementId(), err)))
 			}
 		} else {
@@ -1623,7 +1637,7 @@ func (w *GovernanceWorker) processDependencies(dependencyPath []persistence.Serv
 
 	for _, sDep := range *deps {
 
-		msdef, err := microservice.FindOrCreateMicroserviceDef(w.db, sDep.URL, sDep.Org, sDep.Version, sDep.Arch, false, exchange.GetHTTPServiceHandler(w))
+		msdef, err := microservice.FindOrCreateMicroserviceDef(w.db, sDep.URL, sDep.Org, sDep.Version, sDep.Arch, false, w.devicePattern != "", exchange.GetHTTPServiceHandler(w))
 		if err != nil {
 			return ms_specs, fmt.Errorf(logString(fmt.Sprintf("failed to get or create service definition for dependent service for agreement %v. %v", agreementId, err)))
 		}

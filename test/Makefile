@@ -125,7 +125,8 @@ endif
 DOCKER_VAULT_CNAME := vault
 DOCKER_VAULT_INAME := openhorizon/$(arch)_vault
 DOCKER_VAULT_TAG := testing
-ifeq ($(HZN_VAULT),true)
+no_vault := $(shell echo -e $(TEST_VARS) | grep NOVAULT=1)
+ifeq ($(no_vault),)
 	VAULT_ADDR = http://vault:8200
 endif
 VAULT_CONFIG := $(CURDIR)/docker/fs/etc/vault/config.json
@@ -134,6 +135,7 @@ VAULT_DEV_LISTEN_ADDRESS := $(shell jq ".VAULT_DEV_LISTEN_ADDRESS" $(VAULT_CONFI
 
 #sdo
 DOCKER_SDO_CNAME := sdo-owner-services
+HZN_SDO_SVC_URL ?= https://sdo-owner-services:9008/api
 
 ifndef verbose
 .SILENT:
@@ -202,6 +204,8 @@ run-test: test-image e2edevtest-docker-prereqs test-network
 		-e "HZN_VAULT_ADDR"="$(VAULT_ADDR)" \
 		-e "VAULT_TOKEN"="$(VAULT_DEV_ROOT_TOKEN_ID)" \
 		-e "VAULT_ADDR"="$(VAULT_ADDR)" \
+		-e "HZN_SDO_SVC_URL"="$(HZN_SDO_SVC_URL)" \
+		-e "HZN_AGBOT_URL"="$(AGBOT_SAPI_URL)" \
 		-t $(DOCKER_TEST_INAME):$(DOCKER_TEST_TAG)
 	docker cp $(E2EDEVTEST_TEMPFS)/. $(DOCKER_TEST_CNAME):/
 
@@ -241,7 +245,7 @@ run-dockerreg: test-network
 	docker rm -v $(DOCKER_REG_PW_CNAME)
 
 run-vault: test-network
-	if [[ "$(HZN_VAULT)" == "true" ]]; then \
+	if [[ "$(NOVAULT)" != "1" ]]; then \
 		# Start the vault container \
 		echo "Handling $(DOCKER_VAULT_CNAME)"; \
 		docker/docker_run.bash "$(DOCKER_VAULT_CNAME)" \
@@ -333,7 +337,7 @@ test-image:
 	fi
 
 vault-image:
-	if [[ "$(HZN_VAULT)" == "true" ]]; then \
+	if [[ "$(NOVAULT)" != "1" ]]; then \
 		echo "\nPulling vault image $(DOCKER_VAULT_INAME)"; \
 		docker pull $(DOCKER_VAULT_INAME):$(DOCKER_VAULT_TAG); \
 	else \
@@ -355,12 +359,16 @@ test: clean $(ANAX_SOURCE)/anax run-dockerreg run-mgmthub run-vault run-test
 test-remote: clean $(ANAX_SOURCE)/anax run-dockerreg run-test copy-cert
 	@echo -e  "\nBootstrapping the exchange"
 	docker exec $(DOCKER_TEST_CNAME) bash -c "export $(TEST_VARS); /root/init_exchange.sh"
+	@echo -e  "\nSetting up secrets in the vault"
+	docker exec $(DOCKER_TEST_CNAME) bash -c "export $(TEST_VARS) DOCKER_VAULT_CNAME=$(DOCKER_VAULT_CNAME); /root/setup_secrets.sh"
 	@echo -e  "\nStarting tests"
 	docker exec $(DOCKER_TEST_CNAME) bash -c "export $(TEST_VARS); /root/gov-combined.sh"
 
 test-remote-prebuilt: clean run-dockerreg download-agbot-image run-test copy-cert
 	@echo -e  "\nBootstrapping the exchange"
 	docker exec $(DOCKER_TEST_CNAME) bash -c "export $(TEST_VARS); /root/init_exchange.sh"
+	@echo -e  "\nSetting up secrets in the vault"
+	docker exec $(DOCKER_TEST_CNAME) bash -c "export $(TEST_VARS) DOCKER_VAULT_CNAME=$(DOCKER_VAULT_CNAME); /root/setup_secrets.sh"
 	@echo -e  "\nStarting tests"
 	docker exec $(DOCKER_TEST_CNAME) bash -c "export $(TEST_VARS); /root/gov-combined.sh"
 
