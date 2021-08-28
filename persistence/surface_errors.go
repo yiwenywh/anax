@@ -3,7 +3,6 @@ package persistence
 import (
 	"encoding/json"
 	"fmt"
-	bolt "go.etcd.io/bbolt"
 	"github.com/golang/glog"
 	"github.com/open-horizon/anax/i18n"
 	"time"
@@ -22,70 +21,22 @@ type SurfaceError struct {
 }
 
 // FindSurfaceErrors returns the surface errors currently in the local db
-func FindSurfaceErrors(db *bolt.DB) ([]SurfaceError, error) {
-	var surfaceErrors []SurfaceError
-
-	readErr := db.View(func(tx *bolt.Tx) error {
-		if b := tx.Bucket([]byte(NODE_SURFACEERR)); b != nil {
-			return b.ForEach(func(k, v []byte) error {
-
-				if err := json.Unmarshal(v, &surfaceErrors); err != nil {
-					return fmt.Errorf("Unable to deserialize node surface error record: %v", v)
-				}
-
-				return nil
-			})
-		}
-
-		return nil // end transaction
-	})
-
-	if readErr != nil {
-		return nil, readErr
-	}
-	return surfaceErrors, nil
+func FindSurfaceErrors(db AgentDatabase) ([]SurfaceError, error) {
+	return db.FindSurfaceErrors()
 }
 
 // SaveSurfaceErrors saves the provided list of surface errors to the local db
-func SaveSurfaceErrors(db *bolt.DB, surfaceErrors []SurfaceError) error {
-	writeErr := db.Update(func(tx *bolt.Tx) error {
-		b, err := tx.CreateBucketIfNotExists([]byte(NODE_SURFACEERR))
-		if err != nil {
-			return err
-		}
-
-		if serial, err := json.Marshal(surfaceErrors); err != nil {
-			return fmt.Errorf("Failed to serialize surface errors: %v. Error: %v", surfaceErrors, err)
-		} else {
-			return b.Put([]byte(NODE_SURFACEERR), serial)
-		}
-	})
-
-	return writeErr
+func SaveSurfaceErrors(db AgentDatabase, surfaceErrors []SurfaceError) error {
+	return db.SaveSurfaceErrors(surfaceErrors)
 }
 
 // DeleteSurfaceErrors delete node surface errors from the local database
-func DeleteSurfaceErrors(db *bolt.DB) error {
-	if seList, err := FindSurfaceErrors(db); err != nil {
-		return err
-	} else if len(seList) == 0 {
-		return nil
-	} else {
-		return db.Update(func(tx *bolt.Tx) error {
-
-			if b, err := tx.CreateBucketIfNotExists([]byte(NODE_SURFACEERR)); err != nil {
-				return err
-			} else if err := b.Delete([]byte(NODE_SURFACEERR)); err != nil {
-				return fmt.Errorf("Unable to delete node surface error object: %v", err)
-			} else {
-				return nil
-			}
-		})
-	}
+func DeleteSurfaceErrors(db AgentDatabase) error {
+	return db.DeleteSurfaceErrors()
 }
 
 // NewErrorLog takes an eventLog object and puts it in the local db and exchange if it should be surfaced
-func NewErrorLog(db *bolt.DB, eventLog EventLog) bool {
+func NewErrorLog(db AgentDatabase, eventLog EventLog) bool {
 	if !IsSurfaceType(eventLog.EventCode) || !(eventLog.SourceType == SRC_TYPE_AG || eventLog.SourceType == SRC_TYPE_SVC) {
 		return false
 	}

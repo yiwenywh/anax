@@ -4,7 +4,6 @@ package microservice
 
 import (
 	"fmt"
-	bolt "go.etcd.io/bbolt"
 	"github.com/open-horizon/anax/cutil"
 	"github.com/open-horizon/anax/exchange"
 	"github.com/open-horizon/anax/exchangecommon"
@@ -324,7 +323,7 @@ func getVariableDeviceHandler(mss []exchange.Microservice, ss []exchange.Microse
 	}
 }
 
-func setupDB() (string, *bolt.DB, error) {
+func setupDB() (string, persistence.AgentDatabase, error) {
 	dir, err := ioutil.TempDir("", "container-")
 	if err != nil {
 		return "", nil, err

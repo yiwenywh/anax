@@ -4,7 +4,6 @@ package eventlog
 
 import (
 	"flag"
-	bolt "go.etcd.io/bbolt"
 	"github.com/open-horizon/anax/persistence"
 	"github.com/stretchr/testify/assert"
 	"io/ioutil"
@@ -504,7 +503,7 @@ func Test_LogExchangeEvent(t *testing.T) {
 
 }
 
-func utsetup() (string, *bolt.DB, error) {
+func utsetup() (string, persistence.AgentDatabase, error) {
 	dir, err := ioutil.TempDir("", "utdb-")
 	if err != nil {
 		return "", nil, err

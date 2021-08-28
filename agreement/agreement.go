@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	bolt "go.etcd.io/bbolt"
 	"github.com/golang/glog"
 	"github.com/open-horizon/anax/abstractprotocol"
 	"github.com/open-horizon/anax/config"
@@ -78,7 +77,7 @@ func MarkI18nMessages() {
 // must be safely-constructed!!
 type AgreementWorker struct {
 	worker.BaseWorker        // embedded field
-	db                       *bolt.DB
+	db                       persistence.AgentDatabase
 	devicePattern            string
 	protocols                map[string]bool
 	pm                       *policy.PolicyManager
@@ -90,7 +89,7 @@ type AgreementWorker struct {
 	limitedRetryEC           exchange.ExchangeContext
 }
 
-func NewAgreementWorker(name string, cfg *config.HorizonConfig, db *bolt.DB, pm *policy.PolicyManager) *AgreementWorker {
+func NewAgreementWorker(name string, cfg *config.HorizonConfig, db persistence.AgentDatabase, pm *policy.PolicyManager) *AgreementWorker {
 
 	var ec *worker.BaseExchangeContext
 	var lrec exchange.ExchangeContext

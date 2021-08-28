@@ -2,7 +2,6 @@ package kube_operator
 
 import (
 	"fmt"
-	bolt "go.etcd.io/bbolt"
 	"github.com/golang/glog"
 	"github.com/open-horizon/anax/config"
 	"github.com/open-horizon/anax/events"
@@ -12,10 +11,10 @@ import (
 
 type KubeWorker struct {
 	worker.BaseWorker
-	db *bolt.DB
+	db persistence.AgentDatabase
 }
 
-func NewKubeWorker(name string, config *config.HorizonConfig, db *bolt.DB) *KubeWorker {
+func NewKubeWorker(name string, config *config.HorizonConfig, db persistence.AgentDatabase) *KubeWorker {
 	worker := &KubeWorker{
 		BaseWorker: worker.NewBaseWorker(name, config, nil),
 		db:         db,

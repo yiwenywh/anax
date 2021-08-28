@@ -3,7 +3,6 @@ package exchangesync
 import (
 	"encoding/json"
 	"fmt"
-	bolt "go.etcd.io/bbolt"
 	"github.com/golang/glog"
 	"github.com/open-horizon/anax/config"
 	"github.com/open-horizon/anax/exchange"
@@ -17,7 +16,7 @@ import (
 var nodePolicyUpdateLock sync.Mutex //The lock that protects the nodePolicyLastUpdated value
 
 // Check the node policy changes on the exchange and update the local copy with the changes.
-func SyncNodePolicyWithExchange(db *bolt.DB, pDevice *persistence.ExchangeDevice, getExchangeNodePolicy exchange.NodePolicyHandler, putExchangeNodePolicy exchange.PutNodePolicyHandler) (bool, *externalpolicy.ExternalPolicy, error) {
+func SyncNodePolicyWithExchange(db persistence.AgentDatabase, pDevice *persistence.ExchangeDevice, getExchangeNodePolicy exchange.NodePolicyHandler, putExchangeNodePolicy exchange.PutNodePolicyHandler) (bool, *externalpolicy.ExternalPolicy, error) {
 
 	glog.V(4).Infof("Checking the node policy changes.")
 
@@ -82,7 +81,7 @@ func SyncNodePolicyWithExchange(db *bolt.DB, pDevice *persistence.ExchangeDevice
 // This function retrieves the node's policy from the exchange, adds the node built-in properties if needed. Then it saves the new
 // node policy to the exchange again and then returns the new node policy. If the exchange node policy already has the built-in properties,
 // it just returns the one from the exchange.
-func GetProcessedExchangeNodePolicy(pDevice *persistence.ExchangeDevice, getExchangeNodePolicy exchange.NodePolicyHandler, putExchangeNodePolicy exchange.PutNodePolicyHandler, db *bolt.DB) (*exchange.ExchangePolicy, error) {
+func GetProcessedExchangeNodePolicy(pDevice *persistence.ExchangeDevice, getExchangeNodePolicy exchange.NodePolicyHandler, putExchangeNodePolicy exchange.PutNodePolicyHandler, db persistence.AgentDatabase) (*exchange.ExchangePolicy, error) {
 	// get the node policy from the exchange
 	exchangeNodePolicy, err := getExchangeNodePolicy(fmt.Sprintf("%v/%v", pDevice.Org, pDevice.Id))
 	if err != nil {
@@ -168,7 +167,7 @@ func GetProcessedExchangeNodePolicy(pDevice *persistence.ExchangeDevice, getExch
 }
 
 // Sets the default node policy on local db and the exchange
-func SetDefaultNodePolicy(config *config.HorizonConfig, pDevice *persistence.ExchangeDevice, db *bolt.DB,
+func SetDefaultNodePolicy(config *config.HorizonConfig, pDevice *persistence.ExchangeDevice, db persistence.AgentDatabase,
 	getExchangeNodePolicy exchange.NodePolicyHandler,
 	putExchangeNodePolicy exchange.PutNodePolicyHandler) (*externalpolicy.ExternalPolicy, error) {
 
@@ -244,7 +243,7 @@ func SetDefaultNodePolicy(config *config.HorizonConfig, pDevice *persistence.Exc
 
 // If the both local and exchange node policy are not created, use the default.
 // Otherwise, update the local node policy with the one from the exchange.
-func NodePolicyInitalSetup(db *bolt.DB, config *config.HorizonConfig,
+func NodePolicyInitalSetup(db persistence.AgentDatabase, config *config.HorizonConfig,
 	getExchangeNodePolicy exchange.NodePolicyHandler,
 	putExchangeNodePolicy exchange.PutNodePolicyHandler) (*externalpolicy.ExternalPolicy, error) {
 
@@ -288,7 +287,7 @@ func NodePolicyInitalSetup(db *bolt.DB, config *config.HorizonConfig,
 
 // check if the node policy has been changed from last sync.
 // It returns the latest node policy on the exchange.
-func ExchangeNodePolicyChanged(pDevice *persistence.ExchangeDevice, db *bolt.DB, getExchangeNodePolicy exchange.NodePolicyHandler) (bool, *externalpolicy.ExternalPolicy, error) {
+func ExchangeNodePolicyChanged(pDevice *persistence.ExchangeDevice, db persistence.AgentDatabase, getExchangeNodePolicy exchange.NodePolicyHandler) (bool, *externalpolicy.ExternalPolicy, error) {
 
 	// get the node policy from the exchange
 	exchangeNodePolicy, err := getExchangeNodePolicy(fmt.Sprintf("%v/%v", pDevice.Org, pDevice.Id))
@@ -320,7 +319,7 @@ func ExchangeNodePolicyChanged(pDevice *persistence.ExchangeDevice, db *bolt.DB,
 }
 
 // Delete the node policy from local db and the exchange
-func DeleteNodePolicy(pDevice *persistence.ExchangeDevice, db *bolt.DB,
+func DeleteNodePolicy(pDevice *persistence.ExchangeDevice, db persistence.AgentDatabase,
 	getExchangeNodePolicy exchange.NodePolicyHandler,
 	deleteExchangeNodePolicy exchange.DeleteNodePolicyHandler) error {
 
@@ -353,7 +352,7 @@ func DeleteNodePolicy(pDevice *persistence.ExchangeDevice, db *bolt.DB,
 }
 
 // Update (create new or replace old) node policy on local db and the exchange
-func UpdateNodePolicy(pDevice *persistence.ExchangeDevice, db *bolt.DB, nodePolicy *externalpolicy.ExternalPolicy,
+func UpdateNodePolicy(pDevice *persistence.ExchangeDevice, db persistence.AgentDatabase, nodePolicy *externalpolicy.ExternalPolicy,
 	nodeGetPolicyHandler exchange.NodePolicyHandler,
 	nodePutPolicyHandler exchange.PutNodePolicyHandler) error {
 
@@ -391,7 +390,7 @@ func UpdateNodePolicy(pDevice *persistence.ExchangeDevice, db *bolt.DB, nodePoli
 	return nil
 }
 
-func PatchNodePolicy(pDevice *persistence.ExchangeDevice, db *bolt.DB, patchObject interface{},
+func PatchNodePolicy(pDevice *persistence.ExchangeDevice, db persistence.AgentDatabase, patchObject interface{},
 	nodeGetPolicyHandler exchange.NodePolicyHandler,
 	nodePutPolicyHandler exchange.PutNodePolicyHandler) (*externalpolicy.ExternalPolicy, error) {
 

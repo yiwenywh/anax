@@ -3,7 +3,6 @@ package api
 import (
 	"errors"
 	"fmt"
-	bolt "go.etcd.io/bbolt"
 	dockerclient "github.com/fsouza/go-dockerclient"
 	"github.com/open-horizon/anax/config"
 	"github.com/open-horizon/anax/container"
@@ -17,7 +16,7 @@ import (
 // userInput variable config for each service, running containers for each service,
 // and the state of each service as it is being managed by anax.
 func FindServicesForOutput(pm *policy.PolicyManager,
-	db *bolt.DB,
+	db persistence.AgentDatabase,
 	config *config.HorizonConfig) (*AllServices, error) {
 
 	// Get all the service instances from database.

@@ -3,7 +3,6 @@ package persistence
 import (
 	"encoding/json"
 	"fmt"
-	bolt "go.etcd.io/bbolt"
 	"github.com/golang/glog"
 	"github.com/open-horizon/anax/cutil"
 	"github.com/open-horizon/anax/exchangecommon"
@@ -54,76 +53,20 @@ func PersistedSecretFromPolicySecret(inputSecretBindings []exchangecommon.Secret
 // Save the secret bindings from an agreement
 // This bucket is used to keep the secret information until such time that the microservice instance id is created
 // After that id exists, the secrets will be saved in the SECRETS bucket keyed by ms instance id
-func SaveAgreementSecrets(db *bolt.DB, agId string, secretsList *[]PersistedServiceSecret) error {
-	if secretsList == nil {
-		return nil
-	}
-
-	writeErr := db.Update(func(tx *bolt.Tx) error {
-		bucket, err := tx.CreateBucketIfNotExists([]byte(AGREEMENT_SECRETS))
-		if err != nil {
-			return err
-		}
-
-		if serial, err := json.Marshal(secretsList); err != nil {
-			return fmt.Errorf("Failed to serialize agreement secrets list: Error: %v", err)
-		} else {
-			return bucket.Put([]byte(agId), serial)
-		}
-	})
-
-	return writeErr
+func SaveAgreementSecrets(db AgentDatabase, agId string, secretsList *[]PersistedServiceSecret) error {
+	return db.SaveAgreementSecrets(agId, secretsList)
 }
 
-func FindAgreementSecrets(db *bolt.DB, agId string) (*[]PersistedServiceSecret, error) {
-	if db == nil {
-		return nil, nil
-	}
-
-	var psecretRec *[]PersistedServiceSecret
-	readErr := db.View(func(tx *bolt.Tx) error {
-		if b := tx.Bucket([]byte(AGREEMENT_SECRETS)); b != nil {
-			s := b.Get([]byte(agId))
-			if s != nil {
-				secretRec := []PersistedServiceSecret{}
-				if err := json.Unmarshal(s, &secretRec); err != nil {
-					glog.Errorf("Unable to deserialize agreement secret db record: %v. Error: %v", agId, err)
-					return err
-				} else {
-					psecretRec = &secretRec
-				}
-			}
-		}
-		return nil
-	})
-	return psecretRec, readErr
+func FindAgreementSecrets(db AgentDatabase, agId string) (*[]PersistedServiceSecret, error) {
+	return db.FindAgreementSecrets(agId)
 }
 
-func DeleteAgreementSecrets(db *bolt.DB, agId string) error {
-	if db == nil {
-		return nil
-	}
-
-	if agSecrets, err := FindAgreementSecrets(db, agId); err != nil {
-		return err
-	} else if agSecrets == nil {
-		return nil
-	} else {
-		return db.Update(func(tx *bolt.Tx) error {
-
-			if b, err := tx.CreateBucketIfNotExists([]byte(AGREEMENT_SECRETS)); err != nil {
-				return err
-			} else if err := b.Delete([]byte(agId)); err != nil {
-				return fmt.Errorf("Unable to delete agreement secrets object: %v", err)
-			} else {
-				return nil
-			}
-		})
-	}
+func DeleteAgreementSecrets(db AgentDatabase, agId string) error {
+	return db.DeleteAgreementSecrets(agId)
 }
 
 // Saves the given secret to the agent db
-func SaveSecret(db *bolt.DB, secretName string, msInstKey string, msInstVers string, secretToSave *PersistedServiceSecret) error {
+func SaveSecret(db AgentDatabase, secretName string, msInstKey string, msInstVers string, secretToSave *PersistedServiceSecret) error {
 	if secretToSave == nil {
 		return nil
 	}
@@ -156,58 +99,17 @@ func SaveSecret(db *bolt.DB, secretName string, msInstKey string, msInstVers str
 	return SaveAllSecretsForService(db, msInstKey, secretToSaveAll)
 }
 
-func SaveAllSecretsForService(db *bolt.DB, msInstId string, secretToSaveAll *PersistedServiceSecrets) error {
-	if db == nil {
-		return nil
-	}
-	writeErr := db.Update(func(tx *bolt.Tx) error {
-		bucket, err := tx.CreateBucketIfNotExists([]byte(SECRETS))
-		if err != nil {
-			return err
-		}
-
-		if serial, err := json.Marshal(secretToSaveAll); err != nil {
-			return fmt.Errorf("Failed to serialize secrets: Error: %v", err)
-		} else {
-			return bucket.Put([]byte(msInstId), serial)
-		}
-	})
-
-	return writeErr
+func SaveAllSecretsForService(db AgentDatabase, msInstId string, secretToSaveAll *PersistedServiceSecrets) error {
+	return db.SaveAllSecretsForService(msInstId, secretToSaveAll)
 }
 
 // Gets the secret from the database, no error returned if none is found in the db
-func FindAllSecretsForMS(db *bolt.DB, msInstId string) (*PersistedServiceSecrets, error) {
-	if db == nil {
-		return nil, nil
-	}
-	var psecretRec *PersistedServiceSecrets
-	readErr := db.View(func(tx *bolt.Tx) error {
-
-		if b := tx.Bucket([]byte(SECRETS)); b != nil {
-			s := b.Get([]byte(msInstId))
-			if s != nil {
-				secretRec := PersistedServiceSecrets{}
-				if err := json.Unmarshal(s, &secretRec); err != nil {
-					glog.Errorf("Unable to deserialize service secret db record: %v. Error: %v", msInstId, err)
-					return err
-				} else {
-					psecretRec = &secretRec
-				}
-			}
-		}
-		return nil
-	})
-
-	if readErr != nil {
-		return nil, readErr
-	} else {
-		return psecretRec, nil
-	}
+func FindAllSecretsForMS(db AgentDatabase, msInstId string) (*PersistedServiceSecrets, error) {
+	return db.FindAllSecretsForMS(msInstId)
 }
 
 // Find a particular secret, if a version range is provided it must match the exact range on the secret, if a specific version is given return the first matching secret range
-func FindSingleSecretForService(db *bolt.DB, secName string, msInstId string) (*PersistedServiceSecret, error) {
+func FindSingleSecretForService(db AgentDatabase, secName string, msInstId string) (*PersistedServiceSecret, error) {
 	allSec, err := FindAllSecretsForMS(db, msInstId)
 	if err != nil {
 		return nil, err
@@ -221,7 +123,7 @@ func FindSingleSecretForService(db *bolt.DB, secName string, msInstId string) (*
 	return nil, nil
 }
 
-func AddContainerIdToSecret(db *bolt.DB, secName string, msInstId string, msDefVers string, containerId string) error {
+func AddContainerIdToSecret(db AgentDatabase, secName string, msInstId string, msDefVers string, containerId string) error {
 	sec, err := FindSingleSecretForService(db, secName, msInstId)
 	if err != nil {
 		return err
@@ -261,83 +163,22 @@ func VersRangeSecFilter(versRange string) SecFilter {
 	}
 }
 
-func FindAllServiceSecretsWithFilters(db *bolt.DB, filters []SecFilter) ([]PersistedServiceSecrets, error) {
-	matchingSecrets := []PersistedServiceSecrets{}
-	if db == nil {
-		return matchingSecrets, nil
-	}
-
-	readErr := db.View(func(tx *bolt.Tx) error {
-		if b := tx.Bucket([]byte(SECRETS)); b != nil {
-			b.ForEach(func(k, v []byte) error {
-				var s PersistedServiceSecrets
-
-				if err := json.Unmarshal(v, &s); err != nil {
-					glog.Errorf("Unable to deserialize db record: %v", v)
-				} else {
-					exclude := false
-
-					for _, filterFn := range filters {
-						if !filterFn(s) {
-							exclude = true
-						}
-					}
-
-					if !exclude {
-						matchingSecrets = append(matchingSecrets, s)
-					}
-				}
-				return nil
-			})
-			return nil
-		}
-		return nil
-	})
-
-	if readErr != nil {
-		return nil, readErr
-	} else {
-		return matchingSecrets, nil
-	}
+func FindAllServiceSecretsWithFilters(db AgentDatabase, filters []SecFilter) ([]PersistedServiceSecrets, error) {
+	return db.FindAllServiceSecretsWithFilters(filters)
 }
 
-func FindAllServiceSecretsWithSpecs(db *bolt.DB, svcUrl string, svcOrg string) ([]PersistedServiceSecrets, error) {
+func FindAllServiceSecretsWithSpecs(db AgentDatabase, svcUrl string, svcOrg string) ([]PersistedServiceSecrets, error) {
 	filters := []SecFilter{UrlSecFilter(svcUrl), OrgSecFilter(svcOrg)}
 
 	return FindAllServiceSecretsWithFilters(db, filters)
 }
 
 // Returns the secret from the db if it was there. No error returned if it is not in the db
-func DeleteSecrets(db *bolt.DB, secName string, msInstId string) (*PersistedServiceSecret, error) {
-	if db == nil {
-		return nil, nil
-	}
-
-	if allSec, err := FindAllSecretsForMS(db, msInstId); err != nil {
-		return nil, err
-	} else if allSec != nil {
-		if _, ok := allSec.SecretsMap[secName]; ok {
-			delete(allSec.SecretsMap, secName)
-		}
-		if len(allSec.SecretsMap) == 0 {
-			retSec := allSec.SecretsMap[secName]
-			return retSec, db.Update(func(tx *bolt.Tx) error {
-				if b, err := tx.CreateBucketIfNotExists([]byte(SECRETS)); err != nil {
-					return err
-				} else if err := b.Delete([]byte(msInstId)); err != nil {
-					return fmt.Errorf("Unable to delete secret %v for microservice def %v: %v", secName, msInstId, err)
-				} else {
-					return nil
-				}
-			})
-		} else if err = SaveAllSecretsForService(db, msInstId, allSec); err != nil {
-			return nil, err
-		}
-	}
-	return nil, nil
+func DeleteSecrets(db AgentDatabase, secName string, msInstId string) (*PersistedServiceSecret, error) {
+	return db.DeleteSecrets(secName, msInstId)
 }
 
-func DeleteSecretsSpec(db *bolt.DB, secName string, svcName string, svcOrg string, svcVersionRange string) error {
+func DeleteSecretsSpec(db AgentDatabase, secName string, svcName string, svcOrg string, svcVersionRange string) error {
 	if allServiceSecrets, err := FindAllServiceSecretsWithSpecs(db, svcName, svcOrg); err != nil {
 		return err
 	} else {

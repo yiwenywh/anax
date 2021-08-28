@@ -457,4 +457,3 @@ func SaveOrUpdateAttribute(db AgentDatabase, attr Attribute, id string, permitPa
 func DeleteAttribute(db AgentDatabase, id string) (*Attribute, error) {
 	return db.DeleteAttribute(id)
 }
-

@@ -10,7 +10,6 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	bolt "go.etcd.io/bbolt"
 	"github.com/open-horizon/anax/config"
 	"github.com/open-horizon/anax/events"
 	"github.com/open-horizon/anax/persistence"
@@ -154,7 +153,7 @@ func tConfig(t *testing.T, dir string) *config.HorizonConfig {
 	return &cfg
 }
 
-func setup(t *testing.T) (string, *bolt.DB, error) {
+func setup(t *testing.T) (string, persistence.AgentDatabase, error) {
 	dir, err := ioutil.TempDir("", "container-")
 	if err != nil {
 		return "", nil, err
@@ -221,7 +220,7 @@ func setup(t *testing.T) (string, *bolt.DB, error) {
 	return dir, db, nil
 }
 
-func tWorker(config *config.HorizonConfig, db *bolt.DB) *ImageFetchWorker {
+func tWorker(config *config.HorizonConfig, db persistence.AgentDatabase) *ImageFetchWorker {
 	tw := NewImageFetchWorker("tworker", config, db)
 	return tw
 }

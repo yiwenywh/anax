@@ -3,7 +3,6 @@ package persistence
 import (
 	"encoding/json"
 	"fmt"
-	bolt "go.etcd.io/bbolt"
 	"github.com/golang/glog"
 	"strconv"
 	"time"
@@ -40,46 +39,23 @@ func (w ContainerVolume) ShortString() string {
 }
 
 // save the ContainerVolume record into db.
-func SaveContainerVolume(db *bolt.DB, container_volume *ContainerVolume) error {
-	writeErr := db.Update(func(tx *bolt.Tx) error {
-		if bucket, err := tx.CreateBucketIfNotExists([]byte(CONTAINER_VOLUMES)); err != nil {
-			return err
-		} else {
-			// use the old key if it has one, otherwise generate one
-			key := container_volume.RecordId
-			if key == "" {
-				if nextKey, err := bucket.NextSequence(); err != nil {
-					return fmt.Errorf("Unable to get sequence key for saving new container volume %v. Error: %v", container_volume, err)
-				} else {
-					key = strconv.FormatUint(nextKey, 10)
-					container_volume.RecordId = key
-				}
-			}
-
-			serial, err := json.Marshal(*container_volume)
-			if err != nil {
-				return fmt.Errorf("Failed to serialize the container volume object: %v. Error: %v", *container_volume, err)
-			}
-			return bucket.Put([]byte(key), serial)
-		}
-	})
-
-	return writeErr
+func SaveContainerVolume(db AgentDatabase, container_volume *ContainerVolume) error {
+	return db.SaveContainerVolume(container_volume)
 }
 
 // save the container volume into db.
-func SaveContainerVolumeByName(db *bolt.DB, name string) error {
+func SaveContainerVolumeByName(db AgentDatabase, name string) error {
 	pcv := NewContainerVolume(name)
 	return SaveContainerVolume(db, pcv)
 }
 
 // Find the container volumes that are not deleted yet
-func FindAllUndeletedContainerVolumes(db *bolt.DB) ([]ContainerVolume, error) {
+func FindAllUndeletedContainerVolumes(db AgentDatabase) ([]ContainerVolume, error) {
 	return FindContainerVolumes(db, []ContainerVolumeFilter{UnarchivedCVFilter()})
 }
 
 // Mark the given volume as archived.
-func ArchiveContainerVolumes(db *bolt.DB, cv *ContainerVolume) error {
+func ArchiveContainerVolumes(db AgentDatabase, cv *ContainerVolume) error {
 	if cv == nil {
 		return nil
 	}
@@ -104,40 +80,6 @@ func NameCVFilter(name string) ContainerVolumeFilter {
 }
 
 // find container volumes from the db for the given filters
-func FindContainerVolumes(db *bolt.DB, filters []ContainerVolumeFilter) ([]ContainerVolume, error) {
-	cvs := make([]ContainerVolume, 0)
-
-	// fetch container volumes
-	readErr := db.View(func(tx *bolt.Tx) error {
-
-		if b := tx.Bucket([]byte(CONTAINER_VOLUMES)); b != nil {
-			b.ForEach(func(k, v []byte) error {
-
-				var cv ContainerVolume
-
-				if err := json.Unmarshal(v, &cv); err != nil {
-					glog.Errorf("Unable to deserialize ContainerVolume db record: %v. Error: %v", v, err)
-				} else {
-					exclude := false
-					for _, filterFn := range filters {
-						if !filterFn(cv) {
-							exclude = true
-						}
-					}
-					if !exclude {
-						cvs = append(cvs, cv)
-					}
-				}
-				return nil
-			})
-		}
-
-		return nil // end the transaction
-	})
-
-	if readErr != nil {
-		return nil, readErr
-	} else {
-		return cvs, nil
-	}
+func FindContainerVolumes(db AgentDatabase, filters []ContainerVolumeFilter) ([]ContainerVolume, error) {
+	return db.FindContainerVolumes(filters)
 }

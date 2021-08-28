@@ -2,7 +2,6 @@ package api
 
 import (
 	"fmt"
-	bolt "go.etcd.io/bbolt"
 	"github.com/golang/glog"
 	"github.com/open-horizon/anax/eventlog"
 	"github.com/open-horizon/anax/persistence"
@@ -11,7 +10,7 @@ import (
 )
 
 // This API returns the event logs saved on the db.
-func FindEventLogsForOutput(db *bolt.DB, all_logs bool, selections map[string][]string, msgPrinter *message.Printer) ([]persistence.EventLog, error) {
+func FindEventLogsForOutput(db persistence.AgentDatabase, all_logs bool, selections map[string][]string, msgPrinter *message.Printer) ([]persistence.EventLog, error) {
 
 	glog.V(5).Infof(apiLogString(fmt.Sprintf("Getting event logs from the db. The selectors are: %v.", selections)))
 
@@ -32,7 +31,7 @@ func FindEventLogsForOutput(db *bolt.DB, all_logs bool, selections map[string][]
 	}
 }
 
-func FindSurfaceLogsForOutput(db *bolt.DB, msgPrinter *message.Printer) ([]persistence.SurfaceError, error) {
+func FindSurfaceLogsForOutput(db persistence.AgentDatabase, msgPrinter *message.Printer) ([]persistence.SurfaceError, error) {
 	outputLogs := make([]persistence.SurfaceError, 0)
 	surfaceLogs, err := persistence.FindSurfaceErrors(db)
 	if err != nil {

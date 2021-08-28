@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	bolt "go.etcd.io/bbolt"
 	"github.com/golang/glog"
 	"github.com/open-horizon/anax/cutil"
 	"time"
@@ -129,68 +128,8 @@ func (c EstablishedAgreement) String() string {
 
 }
 
-func NewEstablishedAgreement(db *bolt.DB, name string, agreementId string, consumerId string, proposal string, protocol string, protocolVersion int, dependentSvcs ServiceSpecs, signature string, address string, bcType string, bcName string, bcOrg string, wi *WorkloadInfo, agreementTimeout uint64) (*EstablishedAgreement, error) {
-
-	if name == "" || agreementId == "" || consumerId == "" || proposal == "" || protocol == "" || protocolVersion == 0 {
-		return nil, errors.New("Agreement id, consumer id, proposal, protocol, or protocol version are empty, cannot persist")
-	}
-
-	var filters []EAFilter
-	filters = append(filters, UnarchivedEAFilter())
-	filters = append(filters, IdEAFilter(agreementId))
-
-	if agreements, err := FindEstablishedAgreements(db, protocol, filters); err != nil {
-		return nil, err
-	} else if len(agreements) != 0 {
-		return nil, fmt.Errorf("Not expecting any records with id: %v, found %v", agreementId, agreements)
-	}
-
-	newAg := &EstablishedAgreement{
-		Name:                            name,
-		DependentServices:               dependentSvcs,
-		Archived:                        false,
-		CurrentAgreementId:              agreementId,
-		ConsumerId:                      consumerId,
-		CounterPartyAddress:             address,
-		AgreementCreationTime:           uint64(time.Now().Unix()),
-		AgreementAcceptedTime:           0,
-		AgreementBCUpdateAckTime:        0,
-		AgreementFinalizedTime:          0,
-		AgreementTerminatedTime:         0,
-		AgreementForceTerminatedTime:    0,
-		AgreementExecutionStartTime:     0,
-		AgreementDataReceivedTime:       0,
-		CurrentDeployment:               map[string]ServiceConfig{},
-		ExtendedDeployment:              map[string]interface{}{},
-		Proposal:                        proposal,
-		ProposalSig:                     signature,
-		AgreementProtocol:               protocol,
-		ProtocolVersion:                 protocolVersion,
-		TerminatedReason:                0,
-		TerminatedDescription:           "",
-		AgreementProtocolTerminatedTime: 0,
-		WorkloadTerminatedTime:          0,
-		MeteringNotificationMsg:         MeteringNotification{},
-		BlockchainType:                  bcType,
-		BlockchainName:                  bcName,
-		BlockchainOrg:                   bcOrg,
-		RunningWorkload:                 *wi,
-		AgreementTimeout:                agreementTimeout,
-	}
-
-	return newAg, db.Update(func(tx *bolt.Tx) error {
-
-		if b, err := tx.CreateBucketIfNotExists([]byte(E_AGREEMENTS + "-" + protocol)); err != nil {
-			return err
-		} else if bytes, err := json.Marshal(newAg); err != nil {
-			return fmt.Errorf("Unable to marshal new record: %v", err)
-		} else if err := b.Put([]byte(agreementId), []byte(bytes)); err != nil {
-			return fmt.Errorf("Unable to persist agreement: %v", err)
-		}
-
-		// success, close tx
-		return nil
-	})
+func NewEstablishedAgreement(db AgentDatabase, name string, agreementId string, consumerId string, proposal string, protocol string, protocolVersion int, dependentSvcs ServiceSpecs, signature string, address string, bcType string, bcName string, bcOrg string, wi *WorkloadInfo, agreementTimeout uint64) (*EstablishedAgreement, error) {
+	return db.NewEstablishedAgreement(name, agreementId, consumerId, proposal, protocol, protocolVersion, dependentSvcs, signature, address, bcType, bcName, bcOrg, wi,agreementTimeout)
 }
 
 func (c *EstablishedAgreement) ShortString() string {
@@ -315,7 +254,7 @@ func (a *EstablishedAgreement) GetRetryStartTime() uint64 {
 	return 0
 }
 
-func (a *EstablishedAgreement) Archive(db *bolt.DB) error {
+func (a *EstablishedAgreement) Archive(db AgentDatabase) error {
 	_, err := ArchiveEstablishedAgreement(db, a.CurrentAgreementId, a.AgreementProtocol)
 	return err
 }
@@ -348,7 +287,7 @@ func (a *EstablishedAgreement) GetDeploymentConfig() DeploymentConfig {
 	return nil
 }
 
-func ArchiveEstablishedAgreement(db *bolt.DB, agreementId string, protocol string) (*EstablishedAgreement, error) {
+func ArchiveEstablishedAgreement(db AgentDatabase, agreementId string, protocol string) (*EstablishedAgreement, error) {
 	return agreementStateUpdate(db, agreementId, protocol, func(c EstablishedAgreement) *EstablishedAgreement {
 		c.Archived = true
 		c.CurrentDeployment = map[string]ServiceConfig{}
@@ -357,7 +296,7 @@ func ArchiveEstablishedAgreement(db *bolt.DB, agreementId string, protocol strin
 }
 
 // set agreement state to execution started
-func AgreementStateExecutionStarted(db *bolt.DB, dbAgreementId string, protocol string) (*EstablishedAgreement, error) {
+func AgreementStateExecutionStarted(db AgentDatabase, dbAgreementId string, protocol string) (*EstablishedAgreement, error) {
 	return agreementStateUpdate(db, dbAgreementId, protocol, func(c EstablishedAgreement) *EstablishedAgreement {
 		c.AgreementExecutionStartTime = uint64(time.Now().Unix())
 		return &c
@@ -365,7 +304,7 @@ func AgreementStateExecutionStarted(db *bolt.DB, dbAgreementId string, protocol 
 }
 
 // set agreement state to accepted, a positive reply is being sent
-func AgreementStateAccepted(db *bolt.DB, dbAgreementId string, protocol string) (*EstablishedAgreement, error) {
+func AgreementStateAccepted(db AgentDatabase, dbAgreementId string, protocol string) (*EstablishedAgreement, error) {
 	return agreementStateUpdate(db, dbAgreementId, protocol, func(c EstablishedAgreement) *EstablishedAgreement {
 		c.AgreementAcceptedTime = uint64(time.Now().Unix())
 		return &c
@@ -373,7 +312,7 @@ func AgreementStateAccepted(db *bolt.DB, dbAgreementId string, protocol string) 
 }
 
 // set the eth signature of the proposal
-func AgreementStateProposalSigned(db *bolt.DB, dbAgreementId string, protocol string, sig string) (*EstablishedAgreement, error) {
+func AgreementStateProposalSigned(db AgentDatabase, dbAgreementId string, protocol string, sig string) (*EstablishedAgreement, error) {
 	return agreementStateUpdate(db, dbAgreementId, protocol, func(c EstablishedAgreement) *EstablishedAgreement {
 		c.ProposalSig = sig
 		return &c
@@ -381,7 +320,7 @@ func AgreementStateProposalSigned(db *bolt.DB, dbAgreementId string, protocol st
 }
 
 // set the eth counterparty address when it is received from the consumer
-func AgreementStateBCDataReceived(db *bolt.DB, dbAgreementId string, protocol string, address string) (*EstablishedAgreement, error) {
+func AgreementStateBCDataReceived(db AgentDatabase, dbAgreementId string, protocol string, address string) (*EstablishedAgreement, error) {
 	return agreementStateUpdate(db, dbAgreementId, protocol, func(c EstablishedAgreement) *EstablishedAgreement {
 		c.CounterPartyAddress = address
 		return &c
@@ -389,7 +328,7 @@ func AgreementStateBCDataReceived(db *bolt.DB, dbAgreementId string, protocol st
 }
 
 // set the time when out agreement blockchain update message was Ack'd.
-func AgreementStateBCUpdateAcked(db *bolt.DB, dbAgreementId string, protocol string) (*EstablishedAgreement, error) {
+func AgreementStateBCUpdateAcked(db AgentDatabase, dbAgreementId string, protocol string) (*EstablishedAgreement, error) {
 	return agreementStateUpdate(db, dbAgreementId, protocol, func(c EstablishedAgreement) *EstablishedAgreement {
 		c.AgreementBCUpdateAckTime = uint64(time.Now().Unix())
 		return &c
@@ -397,7 +336,7 @@ func AgreementStateBCUpdateAcked(db *bolt.DB, dbAgreementId string, protocol str
 }
 
 // set agreement state to finalized
-func AgreementStateFinalized(db *bolt.DB, dbAgreementId string, protocol string) (*EstablishedAgreement, error) {
+func AgreementStateFinalized(db AgentDatabase, dbAgreementId string, protocol string) (*EstablishedAgreement, error) {
 	return agreementStateUpdate(db, dbAgreementId, protocol, func(c EstablishedAgreement) *EstablishedAgreement {
 		c.AgreementFinalizedTime = uint64(time.Now().Unix())
 		return &c
@@ -405,7 +344,7 @@ func AgreementStateFinalized(db *bolt.DB, dbAgreementId string, protocol string)
 }
 
 // set deployment config because execution is about to begin
-func AgreementDeploymentStarted(db *bolt.DB, dbAgreementId string, protocol string, deployment DeploymentConfig) (*EstablishedAgreement, error) {
+func AgreementDeploymentStarted(db AgentDatabase, dbAgreementId string, protocol string, deployment DeploymentConfig) (*EstablishedAgreement, error) {
 	return agreementStateUpdate(db, dbAgreementId, protocol, func(c EstablishedAgreement) *EstablishedAgreement {
 		if pf, err := deployment.ToPersistentForm(); err != nil {
 			glog.Errorf("Unable to persist deployment config: (%T) %v", deployment, deployment)
@@ -421,7 +360,7 @@ func AgreementDeploymentStarted(db *bolt.DB, dbAgreementId string, protocol stri
 }
 
 // set agreement state to terminated
-func AgreementStateTerminated(db *bolt.DB, dbAgreementId string, reason uint64, reasonString string, protocol string) (*EstablishedAgreement, error) {
+func AgreementStateTerminated(db AgentDatabase, dbAgreementId string, reason uint64, reasonString string, protocol string) (*EstablishedAgreement, error) {
 	return agreementStateUpdate(db, dbAgreementId, protocol, func(c EstablishedAgreement) *EstablishedAgreement {
 		c.AgreementTerminatedTime = uint64(time.Now().Unix())
 		c.TerminatedReason = reason
@@ -431,7 +370,7 @@ func AgreementStateTerminated(db *bolt.DB, dbAgreementId string, reason uint64, 
 }
 
 // reset agreement state to not-terminated so that we can retry the termination
-func AgreementStateForceTerminated(db *bolt.DB, dbAgreementId string, protocol string) (*EstablishedAgreement, error) {
+func AgreementStateForceTerminated(db AgentDatabase, dbAgreementId string, protocol string) (*EstablishedAgreement, error) {
 	return agreementStateUpdate(db, dbAgreementId, protocol, func(c EstablishedAgreement) *EstablishedAgreement {
 		c.AgreementForceTerminatedTime = uint64(time.Now().Unix())
 		return &c
@@ -439,7 +378,7 @@ func AgreementStateForceTerminated(db *bolt.DB, dbAgreementId string, protocol s
 }
 
 // set agreement state to data received
-func AgreementStateDataReceived(db *bolt.DB, dbAgreementId string, protocol string) (*EstablishedAgreement, error) {
+func AgreementStateDataReceived(db AgentDatabase, dbAgreementId string, protocol string) (*EstablishedAgreement, error) {
 	return agreementStateUpdate(db, dbAgreementId, protocol, func(c EstablishedAgreement) *EstablishedAgreement {
 		c.AgreementDataReceivedTime = uint64(time.Now().Unix())
 		return &c
@@ -447,7 +386,7 @@ func AgreementStateDataReceived(db *bolt.DB, dbAgreementId string, protocol stri
 }
 
 // set agreement state to agreement protocol terminated
-func AgreementStateAgreementProtocolTerminated(db *bolt.DB, dbAgreementId string, protocol string) (*EstablishedAgreement, error) {
+func AgreementStateAgreementProtocolTerminated(db AgentDatabase, dbAgreementId string, protocol string) (*EstablishedAgreement, error) {
 	return agreementStateUpdate(db, dbAgreementId, protocol, func(c EstablishedAgreement) *EstablishedAgreement {
 		c.AgreementProtocolTerminatedTime = uint64(time.Now().Unix())
 		return &c
@@ -455,7 +394,7 @@ func AgreementStateAgreementProtocolTerminated(db *bolt.DB, dbAgreementId string
 }
 
 // set agreement state to workload terminated
-func AgreementStateWorkloadTerminated(db *bolt.DB, dbAgreementId string, protocol string) (*EstablishedAgreement, error) {
+func AgreementStateWorkloadTerminated(db AgentDatabase, dbAgreementId string, protocol string) (*EstablishedAgreement, error) {
 	return agreementStateUpdate(db, dbAgreementId, protocol, func(c EstablishedAgreement) *EstablishedAgreement {
 		c.WorkloadTerminatedTime = uint64(time.Now().Unix())
 		return &c
@@ -463,58 +402,32 @@ func AgreementStateWorkloadTerminated(db *bolt.DB, dbAgreementId string, protoco
 }
 
 // set agreement state to workload terminated
-func MeteringNotificationReceived(db *bolt.DB, dbAgreementId string, mn MeteringNotification, protocol string) (*EstablishedAgreement, error) {
+func MeteringNotificationReceived(db AgentDatabase, dbAgreementId string, mn MeteringNotification, protocol string) (*EstablishedAgreement, error) {
 	return agreementStateUpdate(db, dbAgreementId, protocol, func(c EstablishedAgreement) *EstablishedAgreement {
 		c.MeteringNotificationMsg = mn
 		return &c
 	})
 }
 
-func SetAgreementTimeout(db *bolt.DB, dbAgreementId string, protocol string, agTimeoutS uint64) (*EstablishedAgreement, error) {
+func SetAgreementTimeout(db AgentDatabase, dbAgreementId string, protocol string, agTimeoutS uint64) (*EstablishedAgreement, error) {
 	return agreementStateUpdate(db, dbAgreementId, protocol, func(c EstablishedAgreement) *EstablishedAgreement {
 		c.AgreementTimeout = agTimeoutS
 		return &c
 	})
 }
 
-func SetAgreementServiceDefId(db *bolt.DB, dbAgreementId string, protocol string, svcDefId string) (*EstablishedAgreement, error) {
+func SetAgreementServiceDefId(db AgentDatabase, dbAgreementId string, protocol string, svcDefId string) (*EstablishedAgreement, error) {
 	return agreementStateUpdate(db, dbAgreementId, protocol, func(c EstablishedAgreement) *EstablishedAgreement {
 		c.ServiceDefId = svcDefId
 		return &c
 	})
 }
 
-func DeleteEstablishedAgreement(db *bolt.DB, agreementId string, protocol string) error {
-
-	if agreementId == "" {
-		return errors.New("Agreement id empty, cannot remove")
-	} else {
-
-		filters := make([]EAFilter, 0)
-		filters = append(filters, UnarchivedEAFilter())
-		filters = append(filters, IdEAFilter(agreementId))
-
-		if agreements, err := FindEstablishedAgreements(db, protocol, filters); err != nil {
-			return err
-		} else if len(agreements) != 1 {
-			return fmt.Errorf("Expecting 1 records with id: %v, found %v", agreementId, agreements)
-		} else {
-
-			return db.Update(func(tx *bolt.Tx) error {
-
-				if b, err := tx.CreateBucketIfNotExists([]byte(E_AGREEMENTS + "-" + protocol)); err != nil {
-					return err
-				} else if err := b.Delete([]byte(agreementId)); err != nil {
-					return fmt.Errorf("Unable to delete agreement: %v", err)
-				} else {
-					return nil
-				}
-			})
-		}
-	}
+func DeleteEstablishedAgreement(db AgentDatabase, agreementId string, protocol string) error {
+	return db.DeleteEstablishedAgreement(agreementId, protocol)
 }
 
-func agreementStateUpdate(db *bolt.DB, dbAgreementId string, protocol string, fn func(EstablishedAgreement) *EstablishedAgreement) (*EstablishedAgreement, error) {
+func agreementStateUpdate(db AgentDatabase, dbAgreementId string, protocol string, fn func(EstablishedAgreement) *EstablishedAgreement) (*EstablishedAgreement, error) {
 	filters := make([]EAFilter, 0)
 	filters = append(filters, UnarchivedEAFilter())
 	filters = append(filters, IdEAFilter(dbAgreementId))
@@ -533,99 +446,8 @@ func agreementStateUpdate(db *bolt.DB, dbAgreementId string, protocol string, fn
 }
 
 // does whole-member replacements of values that are legal to change during the course of a contract's life
-func persistUpdatedAgreement(db *bolt.DB, dbAgreementId string, protocol string, update *EstablishedAgreement) error {
-	return db.Update(func(tx *bolt.Tx) error {
-		if b, err := tx.CreateBucketIfNotExists([]byte(E_AGREEMENTS + "-" + protocol)); err != nil {
-			return err
-		} else {
-			current := b.Get([]byte(dbAgreementId))
-			var mod EstablishedAgreement
-
-			if current == nil {
-				return fmt.Errorf("No agreement with given id available to update: %v", dbAgreementId)
-			} else if err := json.Unmarshal(current, &mod); err != nil {
-				return fmt.Errorf("Failed to unmarshal agreement DB data: %v. Error: %v", string(current), err)
-			} else {
-
-				// This code is running in a database transaction. Within the tx, the current record is
-				// read and then updated according to the updates within the input update record. It is critical
-				// to check for correct data transitions within the tx.
-				if !mod.Archived { // 1 transition from false to true
-					mod.Archived = update.Archived
-				}
-				if len(mod.CounterPartyAddress) == 0 { // 1 transition from empty to non-empty
-					mod.CounterPartyAddress = update.CounterPartyAddress
-				}
-				if mod.AgreementAcceptedTime == 0 { // 1 transition from zero to non-zero
-					mod.AgreementAcceptedTime = update.AgreementAcceptedTime
-				}
-				if mod.AgreementBCUpdateAckTime == 0 { // 1 transition from zero to non-zero
-					mod.AgreementBCUpdateAckTime = update.AgreementBCUpdateAckTime
-				}
-				if mod.AgreementFinalizedTime == 0 { // 1 transition from zero to non-zero
-					mod.AgreementFinalizedTime = update.AgreementFinalizedTime
-				}
-				if mod.AgreementTerminatedTime == 0 { // 1 transition from zero to non-zero
-					mod.AgreementTerminatedTime = update.AgreementTerminatedTime
-				}
-				if mod.AgreementForceTerminatedTime < update.AgreementForceTerminatedTime { // always moves forward
-					mod.AgreementForceTerminatedTime = update.AgreementForceTerminatedTime
-				}
-				if mod.AgreementExecutionStartTime == 0 { // 1 transition from zero to non-zero
-					mod.AgreementExecutionStartTime = update.AgreementExecutionStartTime
-				}
-				if mod.AgreementDataReceivedTime < update.AgreementDataReceivedTime { // always moves forward
-					mod.AgreementDataReceivedTime = update.AgreementDataReceivedTime
-				}
-				// valid transitions are from empty to non-empty to empty, ad infinitum
-				if (len(mod.CurrentDeployment) == 0 && len(update.CurrentDeployment) != 0) || (len(mod.CurrentDeployment) != 0 && len(update.CurrentDeployment) == 0) {
-					mod.CurrentDeployment = update.CurrentDeployment
-				}
-				if len(mod.ExtendedDeployment) == 0 && len(update.ExtendedDeployment) != 0 { // valid transitions are from empty to non-empty
-					mod.ExtendedDeployment = update.ExtendedDeployment
-				}
-				if mod.TerminatedReason == 0 { // 1 transition from zero to non-zero
-					mod.TerminatedReason = update.TerminatedReason
-				}
-				if mod.TerminatedDescription == "" { // 1 transition from empty to non-empty
-					mod.TerminatedDescription = update.TerminatedDescription
-				}
-				if mod.AgreementProtocolTerminatedTime == 0 { // 1 transition from zero to non-zero
-					mod.AgreementProtocolTerminatedTime = update.AgreementProtocolTerminatedTime
-				}
-				if mod.WorkloadTerminatedTime == 0 { // 1 transition from zero to non-zero
-					mod.WorkloadTerminatedTime = update.WorkloadTerminatedTime
-				}
-				if update.MeteringNotificationMsg != (MeteringNotification{}) { // only save non-empty values
-					mod.MeteringNotificationMsg = update.MeteringNotificationMsg
-				}
-				if mod.BlockchainType == "" { // 1 transition from empty to non-empty
-					mod.BlockchainType = update.BlockchainType
-				}
-				if mod.BlockchainName == "" { // 1 transition from empty to non-empty
-					mod.BlockchainName = update.BlockchainName
-				}
-				if mod.BlockchainOrg == "" { // 1 transition from empty to non-empty
-					mod.BlockchainOrg = update.BlockchainOrg
-				}
-				if mod.ProposalSig == "" { // 1 transition from empty to non-empty
-					mod.ProposalSig = update.ProposalSig
-				}
-				if mod.ServiceDefId == "" { // transition add microservice definition id
-					mod.ServiceDefId = update.ServiceDefId
-				}
-
-				if serialized, err := json.Marshal(mod); err != nil {
-					return fmt.Errorf("Failed to serialize contract record: %v. Error: %v", mod, err)
-				} else if err := b.Put([]byte(dbAgreementId), serialized); err != nil {
-					return fmt.Errorf("Failed to write contract record with key: %v. Error: %v", dbAgreementId, err)
-				} else {
-					glog.V(2).Infof("Succeeded updating agreement id record to %v", mod)
-					return nil
-				}
-			}
-		}
-	})
+func persistUpdatedAgreement(db AgentDatabase, dbAgreementId string, protocol string, update *EstablishedAgreement) error {
+	return db.PersistUpdatedAgreement(dbAgreementId, protocol, update)
 }
 
 func UnarchivedEAFilter() EAFilter {
@@ -648,64 +470,11 @@ type SensorUrls struct {
 	SensorUrl []string `json:"sensor_url"`
 }
 
-func FindEstablishedAgreements(db *bolt.DB, protocol string, filters []EAFilter) ([]EstablishedAgreement, error) {
-	agreements := make([]EstablishedAgreement, 0)
-
-	// fetch contracts
-	readErr := db.View(func(tx *bolt.Tx) error {
-
-		if b := tx.Bucket([]byte(E_AGREEMENTS + "-" + protocol)); b != nil {
-			b.ForEach(func(k, v []byte) error {
-
-				var e EstablishedAgreement
-
-				if err := json.Unmarshal(v, &e); err != nil {
-					glog.Errorf("Unable to deserialize db record to EstablishedAgreement: %v", v)
-				} else {
-					// this might be agreement from the old EstablishedAgreement structure where SensorUrl was used.
-					// will convert it to new using DependentServices
-					if e.DependentServices == nil {
-						var sensor_urls SensorUrls
-						if err := json.Unmarshal(v, &sensor_urls); err != nil {
-							glog.Errorf("Unable to deserialize db record to SensorUrl: %v", v)
-						} else {
-							e.DependentServices = []ServiceSpec{}
-							if sensor_urls.SensorUrl != nil && len(sensor_urls.SensorUrl) > 0 {
-								for _, url := range sensor_urls.SensorUrl {
-									e.DependentServices = append(e.DependentServices, ServiceSpec{Url: url})
-								}
-							}
-						}
-					}
-
-					if !e.Archived {
-						glog.V(5).Infof("Demarshalled agreement in DB: %v", e)
-					}
-					exclude := false
-					for _, filterFn := range filters {
-						if !filterFn(e) {
-							exclude = true
-						}
-					}
-					if !exclude {
-						agreements = append(agreements, e)
-					}
-				}
-				return nil
-			})
-		}
-
-		return nil // end the transaction
-	})
-
-	if readErr != nil {
-		return nil, readErr
-	} else {
-		return agreements, nil
-	}
+func FindEstablishedAgreements(db AgentDatabase, protocol string, filters []EAFilter) ([]EstablishedAgreement, error) {
+	return db.FindEstablishedAgreements(protocol, filters)
 }
 
-func FindEstablishedAgreementsAllProtocols(db *bolt.DB, protocols []string, filters []EAFilter) ([]EstablishedAgreement, error) {
+func FindEstablishedAgreementsAllProtocols(db AgentDatabase, protocols []string, filters []EAFilter) ([]EstablishedAgreement, error) {
 	agreements := make([]EstablishedAgreement, 0)
 	for _, protocol := range protocols {
 		if ags, err := FindEstablishedAgreements(db, protocol, filters); err != nil {

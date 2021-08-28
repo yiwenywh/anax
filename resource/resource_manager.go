@@ -3,7 +3,6 @@ package resource
 import (
 	"errors"
 	"fmt"
-	bolt "go.etcd.io/bbolt"
 	"github.com/golang/glog"
 	"github.com/open-horizon/anax/config"
 	"github.com/open-horizon/anax/exchange"
@@ -156,14 +155,14 @@ func (r ResourceManager) setupFileSyncService(am *AuthenticationManager) error {
 
 }
 
-func (r ResourceManager) setupSecretsAPI(am *AuthenticationManager, db *bolt.DB) {
+func (r ResourceManager) setupSecretsAPI(am *AuthenticationManager, db persistence.AgentDatabase) {
 	glog.V(5).Infof(rmLogString(fmt.Sprintf("Setup secret API")))
 	secretAPIs := NewSecretAPI(db, am)
 	secretAPIs.SetupHttpHandler()
 }
 
 // StartFileSyncServiceAndSecretAPI will start embeded ESS and agent secrets API server
-func (r ResourceManager) StartFileSyncServiceAndSecretsAPI(am *AuthenticationManager, db *bolt.DB) error {
+func (r ResourceManager) StartFileSyncServiceAndSecretsAPI(am *AuthenticationManager, db persistence.AgentDatabase) error {
 	if err := r.setupFileSyncService(am); err != nil {
 		glog.Errorf(rmLogString(fmt.Sprintf("ESS Setup error: %v", err)))
 		os.Exit(98)

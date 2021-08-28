@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	bolt "go.etcd.io/bbolt"
 	"github.com/golang/glog"
 	"github.com/open-horizon/anax/agreement"
 	"github.com/open-horizon/anax/agreementbot"
@@ -71,17 +70,12 @@ func main() {
 	i18n.InitMessagePrinter(true)
 
 	// open edge DB if necessary
-	var db *bolt.DB
-	if len(cfg.Edge.DBPath) != 0 {
-		if err := os.MkdirAll(cfg.Edge.DBPath, 0700); err != nil {
-			panic(err)
-		}
-
-		edgeDB, err := bolt.Open(path.Join(cfg.Edge.DBPath, "anax.db"), 0600, &bolt.Options{Timeout: 10 * time.Second})
-		if err != nil {
-			panic(err)
-		}
-		db = edgeDB
+	var db persistence.AgentDatabase
+	agentDB, dberr := persistence.InitDatabase(cfg)
+	if db == nil && dberr != nil {
+		panic(fmt.Sprintf("Unable to initialize Agent database: %v", dberr))
+	} else if db != nil && dberr != nil {
+		glog.Warningf("Unable to initialize Agent database on this node: %v", dberr)
 	}
 
 	// open Agreement Bot DB if necessary

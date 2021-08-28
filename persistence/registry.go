@@ -32,4 +32,3 @@ func InitDatabase(cfg *config.HorizonConfig) (AgentDatabase, error) {
 	return nil, errors.New(fmt.Sprintf("Bolt DB is not configured correctly."))
 
 }
-

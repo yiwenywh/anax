@@ -2,7 +2,6 @@ package api
 
 import (
 	"fmt"
-	bolt "go.etcd.io/bbolt"
 	"github.com/open-horizon/anax/config"
 	"github.com/open-horizon/anax/exchange"
 	"github.com/open-horizon/anax/exchangecommon"
@@ -251,7 +250,7 @@ func getDummyDeleteNodePolicyHandler() exchange.DeleteNodePolicyHandler {
 	}
 }
 
-func utsetup() (string, *bolt.DB, error) {
+func utsetup() (string, persistence.AgentDatabase, error) {
 	dir, err := ioutil.TempDir("", "utdb-")
 	if err != nil {
 		return "", nil, err

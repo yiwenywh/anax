@@ -2,7 +2,6 @@ package exchangesync
 
 import (
 	"fmt"
-	bolt "go.etcd.io/bbolt"
 	"github.com/golang/glog"
 	"github.com/open-horizon/anax/exchange"
 	"github.com/open-horizon/anax/persistence"
@@ -29,7 +28,7 @@ func SetExchangeNode(device *exchange.Device) {
 }
 
 // Get the node from the exchange and save it
-func SyncNodeWithExchange(db *bolt.DB, pDevice *persistence.ExchangeDevice, getDevice exchange.DeviceHandler) (*exchange.Device, error) {
+func SyncNodeWithExchange(db persistence.AgentDatabase, pDevice *persistence.ExchangeDevice, getDevice exchange.DeviceHandler) (*exchange.Device, error) {
 
 	glog.V(4).Infof("Checking the node changes.")
 
@@ -53,7 +52,7 @@ func SyncNodeWithExchange(db *bolt.DB, pDevice *persistence.ExchangeDevice, getD
 }
 
 // Used one time when the local node is first registered
-func NodeInitalSetup(db *bolt.DB, getDevice exchange.DeviceHandler) error {
+func NodeInitalSetup(db persistence.AgentDatabase, getDevice exchange.DeviceHandler) error {
 
 	// get the node
 	pDevice, err := persistence.FindExchangeDevice(db)

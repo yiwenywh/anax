@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	bolt "go.etcd.io/bbolt"
 	"github.com/golang/glog"
 	"github.com/open-horizon/anax/cutil"
 	"github.com/open-horizon/anax/persistence"
@@ -20,10 +19,10 @@ import (
 
 type SecretsManager struct {
 	SecretsStorePath string
-	db               *bolt.DB
+	db               persistence.AgentDatabase
 }
 
-func NewSecretsManager(secFilePath string, database *bolt.DB) *SecretsManager {
+func NewSecretsManager(secFilePath string, database persistence.AgentDatabase) *SecretsManager {
 	return &SecretsManager{SecretsStorePath: secFilePath, db: database}
 }
 
@@ -135,7 +134,7 @@ func (s SecretsManager) WriteExistingServiceSecretsToFile(msInstKey string, upda
 }
 
 // Remove this agId from all the secrets it is in. If it is the only agId for that secret, remove the secret
-func (s SecretsManager) DeleteAllSecForAgreement(db *bolt.DB, agreementId string) error {
+func (s SecretsManager) DeleteAllSecForAgreement(db persistence.AgentDatabase, agreementId string) error {
 	if allSec, err := persistence.FindAllServiceSecretsWithFilters(db, []persistence.SecFilter{}); err != nil {
 		return err
 	} else {

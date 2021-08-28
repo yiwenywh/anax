@@ -3,9 +3,8 @@ package bolt
 import (
 	"encoding/json"
 	"fmt"
+	bolt "go.etcd.io/bbolt"
 	"github.com/golang/glog"
-	"github.com/open-horizon/anax/agreementbot/persistence"
-	"github.com/open-horizon/anax/policy"
 )
 
 func init() {   // TODO: is this the right place to do init?

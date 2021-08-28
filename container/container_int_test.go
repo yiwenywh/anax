@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	bolt "go.etcd.io/bbolt"
 	"github.com/fsouza/go-dockerclient"
 	"github.com/open-horizon/anax/config"
 	"github.com/open-horizon/anax/container"
@@ -72,7 +71,7 @@ func tConfig() *config.HorizonConfig {
 	}
 }
 
-func tWorker(config *config.HorizonConfig, db *bolt.DB) *ContainerWorker {
+func tWorker(config *config.HorizonConfig, db persistence.AgentDatabase) *ContainerWorker {
 	cw := NewContainerWorker("cworker", config, db)
 	cw.inAgbot = true
 	return cw
@@ -222,7 +221,7 @@ func pickImage() string {
 	}
 }
 
-func commonPatterned(t *testing.T, db *bolt.DB, agreementId string, tFn func(worker *ContainerWorker, env map[string]string, agreementId string), deployment string) {
+func commonPatterned(t *testing.T, db persistence.AgentDatabase, agreementId string, tFn func(worker *ContainerWorker, env map[string]string, agreementId string), deployment string) {
 
 	// used to name stuff for easy teardown
 	namePrefix := "container-int-test"
@@ -567,7 +566,7 @@ func Test_resourcesCreate_shared(t *testing.T) {
 	}
 }
 
-func setup() (string, *bolt.DB, error) {
+func setup() (string, persistence.AgentDatabase, error) {
 	dir, err := ioutil.TempDir("", "container-")
 	if err != nil {
 		return "", nil, err

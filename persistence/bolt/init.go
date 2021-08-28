@@ -35,4 +35,3 @@ func (db *AgentbotBoltDB) Initialize(cfg *config.HorizonConfig) error {
 	return nil
 
 }
-

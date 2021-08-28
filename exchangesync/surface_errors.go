@@ -2,7 +2,6 @@ package exchangesync
 
 import (
 	"fmt"
-	bolt "go.etcd.io/bbolt"
 	"github.com/golang/glog"
 	"github.com/open-horizon/anax/exchange"
 	"github.com/open-horizon/anax/persistence"
@@ -14,7 +13,7 @@ import (
 // UpdateSurfaceErrors is called when a node's errors need to be surfaced to the exchange.
 // This will close any surfaced errors that have persistent related agreements and update the local and exchange copies.
 // The node copy is the master EXCEPT for the hidden field of each error.
-func UpdateSurfaceErrors(db *bolt.DB, pDevice persistence.ExchangeDevice, exchErrors []persistence.SurfaceError, putErrors exchange.PutSurfaceErrorsHandler, serviceResolverHandler exchange.ServiceResolverHandler, errorTimeout int, agreementPersistentTime int) int {
+func UpdateSurfaceErrors(db persistence.AgentDatabase, pDevice persistence.ExchangeDevice, exchErrors []persistence.SurfaceError, putErrors exchange.PutSurfaceErrorsHandler, serviceResolverHandler exchange.ServiceResolverHandler, errorTimeout int, agreementPersistentTime int) int {
 	updatedExchLogs := make([]persistence.SurfaceError, 0, 5)
 
 	glog.V(5).Infof("Checking on errors to surface")
@@ -89,7 +88,7 @@ func PersistingEAFilter(agreementPersistentTime int) persistence.EAFilter {
 }
 
 // HasPersistentAgreement takes a recordID and returns true if there is a persistent agreement with the same workload on the node.
-func HasPersistentAgreement(db *bolt.DB, serviceResolverHandler exchange.ServiceResolverHandler, pDevice persistence.ExchangeDevice, msgPrinter *message.Printer, errorLog persistence.SurfaceError, agreementPersistentTime int) bool {
+func HasPersistentAgreement(db persistence.AgentDatabase, serviceResolverHandler exchange.ServiceResolverHandler, pDevice persistence.ExchangeDevice, msgPrinter *message.Printer, errorLog persistence.SurfaceError, agreementPersistentTime int) bool {
 	eventLog := persistence.GetEventLogObject(db, msgPrinter, errorLog.Record_id)
 	workload := persistence.GetWorkloadInfo(eventLog)
 
@@ -109,7 +108,7 @@ func HasPersistentAgreement(db *bolt.DB, serviceResolverHandler exchange.Service
 }
 
 // get the all the top level and dependent services the given agreements are using
-func getAllServicesFromAgreements(db *bolt.DB, serviceResolverHandler exchange.ServiceResolverHandler, agreementPersistentTime int) (*policy.APISpecList, error) {
+func getAllServicesFromAgreements(db persistence.AgentDatabase, serviceResolverHandler exchange.ServiceResolverHandler, agreementPersistentTime int) (*policy.APISpecList, error) {
 
 	ags, err := persistence.FindEstablishedAgreementsAllProtocols(db, policy.AllAgreementProtocols(), []persistence.EAFilter{persistence.UnarchivedEAFilter(), PersistingEAFilter(agreementPersistentTime)})
 

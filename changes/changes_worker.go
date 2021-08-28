@@ -2,7 +2,6 @@ package changes
 
 import (
 	"fmt"
-	bolt "go.etcd.io/bbolt"
 	"github.com/golang/glog"
 	"github.com/open-horizon/anax/config"
 	"github.com/open-horizon/anax/eventlog"
@@ -32,7 +31,7 @@ const (
 
 type ChangesWorker struct {
 	worker.BaseWorker      // embedded field
-	db                     *bolt.DB
+	db                     persistence.AgentDatabase
 	pollInterval           int    // The current change polling interval. This interval will float between Min and Max intervals.
 	pollHBRestoredInterval int    // When the node heartbeat fails, this will be used to store the poll interval to return to once the heartbeat is restored
 	pollMinInterval        int    // The minimum time to wait between polls to the exchange.
@@ -47,7 +46,7 @@ type ChangesWorker struct {
 	noworkDispatch         int64  // The last time the NoWorkHandler was dispatched.
 }
 
-func NewChangesWorker(name string, cfg *config.HorizonConfig, db *bolt.DB) *ChangesWorker {
+func NewChangesWorker(name string, cfg *config.HorizonConfig, db persistence.AgentDatabase) *ChangesWorker {
 
 	var ec *worker.BaseExchangeContext
 	dev, _ := persistence.FindExchangeDevice(db)

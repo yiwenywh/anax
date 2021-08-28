@@ -3,7 +3,6 @@
 package governance
 
 import (
-	bolt "go.etcd.io/bbolt"
 	"github.com/open-horizon/anax/exchange"
 	"github.com/open-horizon/anax/exchangecommon"
 	"github.com/open-horizon/anax/persistence"
@@ -317,7 +316,7 @@ func Test_ValidateUserInput_with_Attributes(t *testing.T) {
 
 }
 
-func utsetup() (string, *bolt.DB, error) {
+func utsetup() (string, persistence.AgentDatabase, error) {
 	dir, err := ioutil.TempDir("", "utdb-")
 	if err != nil {
 		return "", nil, err

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	bolt "go.etcd.io/bbolt"
 	"github.com/golang/glog"
 	"github.com/open-horizon/anax/config"
 	"github.com/open-horizon/anax/events"
@@ -16,11 +15,11 @@ import (
 
 type ExchangeMessageWorker struct {
 	worker.BaseWorker // embedded field
-	db                *bolt.DB
+	db                persistence.AgentDatabase
 	config            *config.HorizonConfig
 }
 
-func NewExchangeMessageWorker(name string, cfg *config.HorizonConfig, db *bolt.DB) *ExchangeMessageWorker {
+func NewExchangeMessageWorker(name string, cfg *config.HorizonConfig, db persistence.AgentDatabase) *ExchangeMessageWorker {
 
 	var ec *worker.BaseExchangeContext
 	if dev, _ := persistence.FindExchangeDevice(db); dev != nil {

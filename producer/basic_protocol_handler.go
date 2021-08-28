@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	bolt "go.etcd.io/bbolt"
 	"github.com/golang/glog"
 	"github.com/open-horizon/anax/abstractprotocol"
 	"github.com/open-horizon/anax/basicprotocol"
@@ -23,7 +22,7 @@ type BasicProtocolHandler struct {
 	agreementPH *basicprotocol.ProtocolHandler
 }
 
-func NewBasicProtocolHandler(name string, cfg *config.HorizonConfig, db *bolt.DB, pm *policy.PolicyManager, ec exchange.ExchangeContext) *BasicProtocolHandler {
+func NewBasicProtocolHandler(name string, cfg *config.HorizonConfig, db persistence.AgentDatabase, pm *policy.PolicyManager, ec exchange.ExchangeContext) *BasicProtocolHandler {
 	if name == basicprotocol.PROTOCOL_NAME {
 		return &BasicProtocolHandler{
 			BaseProducerProtocolHandler: &BaseProducerProtocolHandler{
