@@ -1,9 +1,8 @@
 package persistence
 
 import (
-	"encoding/json"
 	"fmt"
-	"github.com/golang/glog"
+	"encoding/json"
 	"github.com/open-horizon/anax/i18n"
 	"golang.org/x/text/message"
 	"reflect"
@@ -201,7 +200,7 @@ func GetLastUnregistrationTime(db AgentDatabase) (uint64, error) {
 
 // save the event log record into db.
 func SaveEventLog(db AgentDatabase, event_log *EventLog) error {
-	db.SaveEventLog(event_log)
+	return db.SaveEventLog(event_log)
 }
 
 type EventLogRaw struct {

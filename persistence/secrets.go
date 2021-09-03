@@ -1,7 +1,6 @@
 package persistence
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/golang/glog"
 	"github.com/open-horizon/anax/cutil"

@@ -32,7 +32,6 @@ import (
 	"runtime"
 	"runtime/pprof"
 	"syscall"
-	"time"
 )
 
 // The core of anax is an event handling system that distributes events to workers, where the workers
@@ -71,7 +70,7 @@ func main() {
 
 	// open edge DB if necessary
 	var db persistence.AgentDatabase
-	agentDB, dberr := persistence.InitDatabase(cfg)
+	db, dberr := persistence.InitDatabase(cfg)
 	if db == nil && dberr != nil {
 		panic(fmt.Sprintf("Unable to initialize Agent database: %v", dberr))
 	} else if db != nil && dberr != nil {
@@ -81,11 +80,11 @@ func main() {
 	// open Agreement Bot DB if necessary
 
 	var agbotDB agbotPersistence.AgbotDatabase
-	agbotDB, dberr := agbotPersistence.InitDatabase(cfg)
-	if db == nil && dberr != nil {
-		panic(fmt.Sprintf("Unable to initialize Agreement Bot: %v", dberr))
-	} else if db != nil && dberr != nil {
-		glog.Warningf("Unable to initialize Agreement Bot database on this node: %v", dberr)
+	agbotDB, agbotDBdberr := agbotPersistence.InitDatabase(cfg)
+	if agbotDB == nil && agbotDBdberr != nil {
+		panic(fmt.Sprintf("Unable to initialize Agreement Bot: %v", agbotDBdberr))
+	} else if agbotDB != nil && agbotDBdberr != nil {
+		glog.Warningf("Unable to initialize Agreement Bot database on this node: %v", agbotDBdberr)
 	}
 
 	// Initialize the secrets implementation

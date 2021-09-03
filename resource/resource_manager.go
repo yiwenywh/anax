@@ -6,6 +6,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/open-horizon/anax/config"
 	"github.com/open-horizon/anax/exchange"
+	"github.com/open-horizon/anax/persistence"
 	"github.com/open-horizon/edge-sync-service/common"
 	"github.com/open-horizon/edge-sync-service/core/base"
 	"github.com/open-horizon/edge-sync-service/core/security"

@@ -4,6 +4,7 @@ import (
 	"github.com/open-horizon/anax/config"
 	"github.com/open-horizon/anax/policy" // needed??
 	"github.com/open-horizon/anax/externalpolicy"
+	"golang.org/x/text/message"
 )
 
 // An agentbot can be configured to run with several different databases. Currently only bbolt is supported.
@@ -18,13 +19,13 @@ type AgentDatabase interface {
 
 	FindAttributeByKey(attributeid string) (*Attribute, error)
 	FindApplicableAttributes(serviceUrl string, org string) ([]Attribute, error)
-	UpdateAttribute(attributeid string, *Attribute) (*Attribute, error)
+	UpdateAttribute(attributeid string, attr *Attribute) (*Attribute, error)
 	DeleteAttribute(attributeid string) (*Attribute, error)
 
 	SaveContainerVolume(container_volume *ContainerVolume) error
 	FindContainerVolumes(filters []ContainerVolumeFilter) ([]ContainerVolume, error)
 
-	UpdateExchangeDevice(self *ExchangeDevice, deviceId string, invalidateToken bool, fn func(d ExchangeDevice) *ExchangeDevice) (*ExchangeDevice, error)
+	UpdateExchangeDevice(self *ExchangeDevice, deviceId string, invalidateToken bool, fn func(ExchangeDevice) *ExchangeDevice) (*ExchangeDevice, error)
 	SaveNewExchangeDevice(id string, token string, name string, nodeType string, ha bool, organization string, pattern string, configstate string) (*ExchangeDevice, error)
 	FindExchangeDevice() (*ExchangeDevice, error)
 	DeleteExchangeDevice() error

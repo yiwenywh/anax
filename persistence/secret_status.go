@@ -1,10 +1,8 @@
 package persistence
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/golang/glog"
 )
 
 const SECRET_STATUS = "secret_status"

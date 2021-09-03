@@ -249,7 +249,7 @@ func FindAttributeByKey(db AgentDatabase, id string) (*Attribute, error) {
 // For an attribute, if the a.ServiceSpecs is empty, it will be included.
 // Otherwise, if an element in the attrubute's ServiceSpecs array equals to ServiceSpec{serviceUrl, org}
 // the attribute will be included.
-func FindApplicableAttributes(db *bolt.DB, serviceUrl string, org string) ([]Attribute, error) {
+func FindApplicableAttributes(db AgentDatabase, serviceUrl string, org string) ([]Attribute, error) {
 	return db.FindApplicableAttributes(serviceUrl, org)
 }
 
@@ -449,7 +449,7 @@ func SaveOrUpdateAttribute(db AgentDatabase, attr Attribute, id string, permitPa
 		(*ret).GetMeta().Publishable = &pT
 	}
 
-	writeErr := db.UpdateAttribute(attributeid, ret)
+	_, writeErr := db.UpdateAttribute(id, ret)
 
 	return ret, writeErr
 }

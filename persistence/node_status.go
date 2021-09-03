@@ -1,10 +1,5 @@
 package persistence
 
-import (
-	"encoding/json"
-	"fmt"
-)
-
 const NODE_STATUS = "node_status"
 
 type WorkloadStatus struct {

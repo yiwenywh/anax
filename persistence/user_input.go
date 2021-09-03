@@ -1,7 +1,6 @@
 package persistence
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/open-horizon/anax/policy"
 )
@@ -62,7 +61,7 @@ func GetAllUserInputAttributes(db AgentDatabase) ([]UserInputAttributes, error) 
 
 // Retrieve the exchange node user input hash from the database.
 func GetNodeUserInputHash_Exch(db AgentDatabase) ([]byte, error) {
-	return db.GetNodeUserInputHash_Exch
+	return db.GetNodeUserInputHash_Exch()
 }
 
 // save the exchange node user input hash.

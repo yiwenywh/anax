@@ -1,14 +1,11 @@
 package persistence
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/golang/glog"
 	"github.com/open-horizon/anax/cutil"
 	"github.com/open-horizon/anax/exchangecommon"
 	"github.com/satori/go.uuid"
-	"strconv"
 	"time"
 )
 

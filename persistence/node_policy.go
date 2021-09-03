@@ -1,8 +1,6 @@
 package persistence
 
 import (
-	"encoding/json"
-	"fmt"
 	"github.com/open-horizon/anax/externalpolicy"
 )
 

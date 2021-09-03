@@ -1,10 +1,7 @@
 package persistence
 
 import (
-	"encoding/json"
 	"fmt"
-	"github.com/golang/glog"
-	"strconv"
 	"time"
 )
 

@@ -1,9 +1,5 @@
 package persistence
 
-import (
-	"fmt"
-)
-
 // Constants used throughout the code.
 const NODE_EXCH_PATTERN = "nodeexchpattern" // The bucket name in the bolt DB.
 
