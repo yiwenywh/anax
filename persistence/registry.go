@@ -24,7 +24,7 @@ func Register(name string, db AgentDatabase) {
 // If nothing is configured, an error is returned.
 func InitDatabase(cfg *config.HorizonConfig) (AgentDatabase, error) {
 
-	if cfg.IsBoltDBConfigured() {
+	if cfg.IsAgentBoltDBConfigured() {
 		dbObj := DatabaseProviders["bolt"]
 		return dbObj, dbObj.Initialize(cfg)
 

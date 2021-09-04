@@ -449,7 +449,7 @@ func SaveOrUpdateAttribute(db AgentDatabase, attr Attribute, id string, permitPa
 		(*ret).GetMeta().Publishable = &pT
 	}
 
-	_, writeErr := db.UpdateAttribute(id, ret)
+	writeErr := db.UpdateAttribute(id, ret)
 
 	return ret, writeErr
 }
@@ -457,3 +457,4 @@ func SaveOrUpdateAttribute(db AgentDatabase, attr Attribute, id string, permitPa
 func DeleteAttribute(db AgentDatabase, id string) (*Attribute, error) {
 	return db.DeleteAttribute(id)
 }
+

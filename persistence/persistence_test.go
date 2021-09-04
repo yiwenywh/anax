@@ -3,14 +3,14 @@
 package persistence
 
 import (
-	"encoding/json"
-	"errors"
-	"fmt"
-	bolt "go.etcd.io/bbolt"
+	//"encoding/json"
+	//"errors"
+	//"fmt"
 	"testing"
-	"time"
+	//"time"
 )
 
+/**
 type EstablishedAgreement_Old struct {
 	Name                         string   `json:"name"`
 	SensorUrl                    []string `json:"sensor_url"`
@@ -134,6 +134,7 @@ func NewEstablishedAgreement_Old(db *bolt.DB, name string, agreementId string, c
 		return nil
 	})
 }
+**/
 
 func Test_Backward_Compitibility_EstablishedAgreement(t *testing.T) {
 	dir, testDb, err := utsetup()
@@ -208,3 +209,4 @@ func Test_Backward_Compitibility_EstablishedAgreement(t *testing.T) {
 		}
 	}
 }
+

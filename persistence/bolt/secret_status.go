@@ -1,16 +1,22 @@
 package bolt
 
 import (
+	"errors"
 	"encoding/json"
 	"fmt"
 	"github.com/golang/glog"
 	bolt "go.etcd.io/bbolt"
+	"github.com/open-horizon/anax/persistence"
 )
 
+func init() {   // TODO: is this the right place to do init?
+	persistence.Register("bolt", new(AgentBoltDB))
+}
+
 // save the given microserviceSecretStatus instance into the db. Key: MsInstKey, Value: MicroserviceSecretStatus Object
-func (db *AgentBoltDB) SaveMSSInst(new_secret_status_inst *MicroserviceSecretStatusInst) (*MicroserviceSecretStatusInst, error) {
+func (db *AgentBoltDB) SaveMSSInst(new_secret_status_inst *persistence.MicroserviceSecretStatusInst) (*persistence.MicroserviceSecretStatusInst, error) {
 	return new_secret_status_inst, db.db.Update(func(tx *bolt.Tx) error {
-		if b, err := tx.CreateBucketIfNotExists([]byte(SECRET_STATUS)); err != nil {
+		if b, err := tx.CreateBucketIfNotExists([]byte(persistence.SECRET_STATUS)); err != nil {
 			return err
 		} else if bytes, err := json.Marshal(new_secret_status_inst); err != nil {
 			return fmt.Errorf("Unable to marshal new record: %v", err)
@@ -22,16 +28,16 @@ func (db *AgentBoltDB) SaveMSSInst(new_secret_status_inst *MicroserviceSecretSta
 	})	
 }
 
-func (db *AgentBoltDB) FindMSSInstWithKey(ms_inst_key string) (*MicroserviceSecretStatusInst, error) {
-	var pmsSecretStatusInst *MicroserviceSecretStatusInst
+func (db *AgentBoltDB) FindMSSInstWithKey(ms_inst_key string) (*persistence.MicroserviceSecretStatusInst, error) {
+	var pmsSecretStatusInst *persistence.MicroserviceSecretStatusInst
 	pmsSecretStatusInst = nil
 
 	// fetch microserviceSecretStatus instances
 	readErr := db.db.View(func(tx *bolt.Tx) error {
-		if b := tx.Bucket([]byte(SECRET_STATUS)); b != nil {
+		if b := tx.Bucket([]byte(persistence.SECRET_STATUS)); b != nil {
 			v := b.Get([]byte(ms_inst_key))
 
-			var msSecretStatusInst MicroserviceSecretStatusInst
+			var msSecretStatusInst persistence.MicroserviceSecretStatusInst
 
 			if err := json.Unmarshal(v, &msSecretStatusInst); err != nil {
 				glog.Errorf("Unable to deserialize microserviceSecretStatus instance db record: %v. Error: %v", v, err)
@@ -52,17 +58,17 @@ func (db *AgentBoltDB) FindMSSInstWithKey(ms_inst_key string) (*MicroserviceSecr
 	}	
 }
 
-func (db *AgentBoltDB) FindMSSInstWithESSToken(ess_token string) (*MicroserviceSecretStatusInst, error) {
-	var pms *MicroserviceSecretStatusInst
+func (db *AgentBoltDB) FindMSSInstWithESSToken(ess_token string) (*persistence.MicroserviceSecretStatusInst, error) {
+	var pms *persistence.MicroserviceSecretStatusInst
 	pms = nil
 
 	// fetch microserviceSecretStatus instances
 	readErr := db.db.View(func(tx *bolt.Tx) error {
 
-		if b := tx.Bucket([]byte(SECRET_STATUS)); b != nil {
+		if b := tx.Bucket([]byte(persistence.SECRET_STATUS)); b != nil {
 			cursor := b.Cursor()
 			for key, value := cursor.First(); key != nil; key, value = cursor.Next() {
-				var msSecretStatusInstance MicroserviceSecretStatusInst
+				var msSecretStatusInstance persistence.MicroserviceSecretStatusInst
 				if err := json.Unmarshal(value, &msSecretStatusInstance); err != nil {
 					return err
 				}
@@ -85,17 +91,17 @@ func (db *AgentBoltDB) FindMSSInstWithESSToken(ess_token string) (*MicroserviceS
 }
 
 // delete a microserviceSecretStatus instance from db. It will NOT return error if it does not exist in the db
-func (db *AgentBoltDB) DeleteMSSInstWithKey(ms_inst_key string) (*MicroserviceSecretStatusInst, error) {
+func (db *AgentBoltDB) DeleteMSSInstWithKey(ms_inst_key string) (*persistence.MicroserviceSecretStatusInst, error) {
 	if ms_inst_key == "" {
 		return nil, errors.New("microserviceInstantKey (key) is empty, cannot remove")
 	} else {
-		if ms, err := FindMSSInstWithKey(ms_inst_key); err != nil {
+		if ms, err := db.FindMSSInstWithKey(ms_inst_key); err != nil {
 			return nil, err
 		} else if ms == nil {
 			return nil, nil
 		} else {
 			return ms, db.db.Update(func(tx *bolt.Tx) error {
-				if b, err := tx.CreateBucketIfNotExists([]byte(SECRET_STATUS)); err != nil {
+				if b, err := tx.CreateBucketIfNotExists([]byte(persistence.SECRET_STATUS)); err != nil {
 					return err
 				} else if err := b.Delete([]byte(ms_inst_key)); err != nil {
 					return fmt.Errorf("Unable to delete microserviceSecretStatus instance %v: %v", ms_inst_key, err)
@@ -107,17 +113,17 @@ func (db *AgentBoltDB) DeleteMSSInstWithKey(ms_inst_key string) (*MicroserviceSe
 	}	
 }
 
-func (db *AgentBoltDB) DeleteMSSInstWithESSToken(ess_token string) (*MicroserviceSecretStatusInst, error) {
+func (db *AgentBoltDB) DeleteMSSInstWithESSToken(ess_token string) (*persistence.MicroserviceSecretStatusInst, error) {
 	if ess_token == "" {
 		return nil, errors.New("ess_token(key) is empty, cannot remove")
 	} else {
-		if ms, err := FindMSSInstWithESSToken(ess_token); err != nil {
+		if ms, err := db.FindMSSInstWithESSToken(ess_token); err != nil {
 			return nil, err
 		} else if ms == nil {
 			return nil, nil
 		} else {
 			return ms, db.db.Update(func(tx *bolt.Tx) error {
-				if b, err := tx.CreateBucketIfNotExists([]byte(SECRET_STATUS)); err != nil {
+				if b, err := tx.CreateBucketIfNotExists([]byte(persistence.SECRET_STATUS)); err != nil {
 					return err
 				} else if err := b.Delete([]byte(ms.MsInstKey)); err != nil {
 					return fmt.Errorf("Unable to delete microserviceSecretStatus instance with ess_token %v: %v", ess_token, err)
@@ -129,13 +135,13 @@ func (db *AgentBoltDB) DeleteMSSInstWithESSToken(ess_token string) (*Microservic
 	}	
 }
 
-func (db *AgentBoltDB) PersistUpdatedMSSInst(ms_inst_key string, update *MicroserviceSecretStatusInst) error {
+func (db *AgentBoltDB) PersistUpdatedMSSInst(ms_inst_key string, update *persistence.MicroserviceSecretStatusInst) error {
 	return db.db.Update(func(tx *bolt.Tx) error {
-		if b, err := tx.CreateBucketIfNotExists([]byte(SECRET_STATUS)); err != nil {
+		if b, err := tx.CreateBucketIfNotExists([]byte(persistence.SECRET_STATUS)); err != nil {
 			return err
 		} else {
 			current := b.Get([]byte(ms_inst_key))
-			var mod MicroserviceSecretStatusInst
+			var mod persistence.MicroserviceSecretStatusInst
 
 			if current == nil {
 				return fmt.Errorf("No service with given key available to update: %v", ms_inst_key)

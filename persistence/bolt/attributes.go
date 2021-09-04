@@ -4,17 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	bolt "go.etcd.io/bbolt"
-	"github.com/golang/glog"
+	"github.com/open-horizon/anax/persistence"
 )
 
 func init() {   // TODO: is this the right place to do init?
 	persistence.Register("bolt", new(AgentBoltDB))
-}
-
-// TOOD: is this the right place to define AgentBoltDB?
-// This is the object that represents the handle to the bolt func (db *AgentBoltDB)
-type AgentBoltDB struct {
-	db *bolt.DB
 }
 
 func (db *AgentBoltDB) String() string {
@@ -22,15 +16,15 @@ func (db *AgentBoltDB) String() string {
 }
 
 // FindAttributeByKey is used to fetch a single attribute by its primary key
-func (db *AgentBoltDB) FindAttributeByKey(attributeid string) (*Attribute, error) {
-	var attr Attribute
+func (db *AgentBoltDB) FindAttributeByKey(attributeid string) (*persistence.Attribute, error) {
+	var attr persistence.Attribute
 	var bucket *bolt.Bucket
 
 	readErr := db.db.View(func(tx *bolt.Tx) error {
-		bucket = tx.Bucket([]byte(ATTRIBUTES))
+		bucket = tx.Bucket([]byte(persistence.ATTRIBUTES))
 		if bucket != nil {
 
-			v := bucket.Get([]byte(id))
+			v := bucket.Get([]byte(attributeid))
 			if v != nil {
 				var err error
 				attr, err = persistence.HydrateConcreteAttribute(v)
@@ -62,11 +56,11 @@ func (db *AgentBoltDB) FindAttributeByKey(attributeid string) (*Attribute, error
 // For an attribute, if the a.ServiceSpecs is empty, it will be included.
 // Otherwise, if an element in the attrubute's ServiceSpecs array equals to ServiceSpec{serviceUrl, org}
 // the attribute will be included.
-func (db *AgentBoltDB) FindApplicableAttributes(serviceUrl string, org string) ([]Attribute, error) {
-	filteredAttrs := []Attribute{}
+func (db *AgentBoltDB) FindApplicableAttributes(serviceUrl string, org string) ([]persistence.Attribute, error) {
+	filteredAttrs := []persistence.Attribute{}
 
 	return filteredAttrs, db.db.View(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket([]byte(ATTRIBUTES))
+		bucket := tx.Bucket([]byte(persistence.ATTRIBUTES))
 
 		if bucket == nil {
 			return nil
@@ -89,9 +83,9 @@ func (db *AgentBoltDB) FindApplicableAttributes(serviceUrl string, org string) (
 	})
 }
 
-func (db *AgentBoltDB) UpdateAttribute(attributeid string, attr *Attribute) (error) {
+func (db *AgentBoltDB) UpdateAttribute(attributeid string, attr *persistence.Attribute) (error) {
 	writeErr := db.db.Update(func(tx *bolt.Tx) error {
-		bucket, err := tx.CreateBucketIfNotExists([]byte(ATTRIBUTES))
+		bucket, err := tx.CreateBucketIfNotExists([]byte(persistence.ATTRIBUTES))
 		if err != nil {
 			return err
 		}
@@ -105,8 +99,8 @@ func (db *AgentBoltDB) UpdateAttribute(attributeid string, attr *Attribute) (err
 	return writeErr
 }
 
-func (db *AgentBoltDB) DeleteAttribute(attributeid string) (*Attribute, error) {
-	existing, err := db.FindAttributeByKey(id)
+func (db *AgentBoltDB) DeleteAttribute(attributeid string) (*persistence.Attribute, error) {
+	existing, err := db.FindAttributeByKey(attributeid)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to search for existing attribute: %v", err)
 	}
@@ -116,11 +110,11 @@ func (db *AgentBoltDB) DeleteAttribute(attributeid string) (*Attribute, error) {
 	}
 
 	delError := db.db.Update(func(tx *bolt.Tx) error {
-		bucket, err := tx.CreateBucketIfNotExists([]byte(ATTRIBUTES))
+		bucket, err := tx.CreateBucketIfNotExists([]byte(persistence.ATTRIBUTES))
 		if err != nil {
 			return err
 		}
-		return bucket.Delete([]byte(id))
+		return bucket.Delete([]byte(attributeid))
 	})
 
 	return existing, delError

@@ -6,14 +6,20 @@ import (
 	"github.com/golang/glog"
 	bolt "go.etcd.io/bbolt"
 	"github.com/open-horizon/anax/i18n"
+	"github.com/open-horizon/anax/persistence"
 	"golang.org/x/text/message"
 	"strconv"
+	"time"
 )
+
+func init() {   // TODO: is this the right place to do init?
+	persistence.Register("bolt", new(AgentBoltDB))
+}
 
 // save the timestamp for the last unregistration into db.
 func (db *AgentBoltDB) SaveLastUnregistrationTime(last_unreg_time uint64) error {
 	writeErr := db.db.Update(func(tx *bolt.Tx) error {
-		if bucket, err := tx.CreateBucketIfNotExists([]byte(LAST_UNREG)); err != nil {
+		if bucket, err := tx.CreateBucketIfNotExists([]byte(persistence.LAST_UNREG)); err != nil {
 			return err
 		} else {
 			return bucket.Put([]byte("lastunreg"), []byte(strconv.FormatUint(last_unreg_time, 10)))
@@ -31,7 +37,7 @@ func (db *AgentBoltDB) GetLastUnregistrationTime() (uint64, error) {
 	// fetch event logs
 	readErr := db.db.View(func(tx *bolt.Tx) error {
 
-		if b := tx.Bucket([]byte(LAST_UNREG)); b != nil {
+		if b := tx.Bucket([]byte(persistence.LAST_UNREG)); b != nil {
 			v := b.Get([]byte("lastunreg"))
 			if s, err := strconv.ParseUint(string(v[:]), 10, 64); err != nil {
 				return fmt.Errorf("Failed to convert the last unregistration time %v into uint64, error: %v", v, err)
@@ -51,9 +57,9 @@ func (db *AgentBoltDB) GetLastUnregistrationTime() (uint64, error) {
 }
 
 // save the event log record into db.
-func (db *AgentBoltDB) SaveEventLog(event_log *EventLog) error {
+func (db *AgentBoltDB) SaveEventLog(event_log *persistence.EventLog) error {
 	writeErr := db.db.Update(func(tx *bolt.Tx) error {
-		if bucket, err := tx.CreateBucketIfNotExists([]byte(EVENT_LOGS)); err != nil {
+		if bucket, err := tx.CreateBucketIfNotExists([]byte(persistence.EVENT_LOGS)); err != nil {
 			return err
 		} else if nextKey, err := bucket.NextSequence(); err != nil {
 			return fmt.Errorf("Unable to get sequence key for new event log %v. Error: %v", event_log, err)
@@ -69,28 +75,28 @@ func (db *AgentBoltDB) SaveEventLog(event_log *EventLog) error {
 		}
 	})
 
-	NewErrorLog(db, *event_log)
+	persistence.NewErrorLog(db, *event_log)
 	return writeErr
 }
 
 // Find the event log from the db
-func (db *AgentBoltDB) FindEventLogWithKey(key string) (*EventLog, error) {
-	var pel *EventLog
+func (db *AgentBoltDB) FindEventLogWithKey(key string) (*persistence.EventLog, error) {
+	var pel *persistence.EventLog
 	pel = nil
 
 	// fetch event logs
 	readErr := db.db.View(func(tx *bolt.Tx) error {
 
-		if b := tx.Bucket([]byte(EVENT_LOGS)); b != nil {
+		if b := tx.Bucket([]byte(persistence.EVENT_LOGS)); b != nil {
 			v := b.Get([]byte(key))
 
-			var el EventLogRaw
+			var el persistence.EventLogRaw
 
 			if err := json.Unmarshal(v, &el); err != nil {
 				glog.Errorf("Unable to deserialize event log db record: %v. Error: %v", v, err)
 				return err
 			} else {
-				if esrc, err := GetRealEventSource(el.SourceType, el.Source); err != nil {
+				if esrc, err := persistence.GetRealEventSource(el.SourceType, el.Source); err != nil {
 					glog.Errorf("Unable to convert event source: %v. Error: %v", el.Source, err)
 					return err
 				} else {
@@ -113,21 +119,21 @@ func (db *AgentBoltDB) FindEventLogWithKey(key string) (*EventLog, error) {
 }
 
 // find event logs from the db for the given filters
-func (db *AgentBoltDB) FindEventLogs(filters []EventLogFilter) ([]EventLog, error) {
-	evlogs := make([]EventLog, 0)
+func (db *AgentBoltDB) FindEventLogs(filters []persistence.EventLogFilter) ([]persistence.EventLog, error) {
+	evlogs := make([]persistence.EventLog, 0)
 
 	// fetch logs
 	readErr := db.db.View(func(tx *bolt.Tx) error {
 
-		if b := tx.Bucket([]byte(EVENT_LOGS)); b != nil {
+		if b := tx.Bucket([]byte(persistence.EVENT_LOGS)); b != nil {
 			b.ForEach(func(k, v []byte) error {
 
-				var el EventLogRaw
+				var el persistence.EventLogRaw
 
 				if err := json.Unmarshal(v, &el); err != nil {
 					glog.Errorf("Unable to deserialize event log db record: %v. Error: %v", v, err)
 				} else {
-					if esrc, err := GetRealEventSource(el.SourceType, el.Source); err != nil {
+					if esrc, err := persistence.GetRealEventSource(el.SourceType, el.Source); err != nil {
 						glog.Errorf("Unable to convert event source: %v. Error: %v", el.Source, err)
 					} else {
 						pel := newEventLog1(el.Severity, el.Message, el.MessageMeta, el.EventCode, el.SourceType, *esrc)
@@ -161,15 +167,15 @@ func (db *AgentBoltDB) FindEventLogs(filters []EventLogFilter) ([]EventLog, erro
 
 // find event logs from the db for the given given selectors.
 // If all_logs is false, only the event logs for the current registration is returned.
-func (db *AgentBoltDB) FindEventLogsWithSelectors(all_logs bool, selectors map[string][]Selector, msgPrinter *message.Printer) ([]EventLog, error) {
+func (db *AgentBoltDB) FindEventLogsWithSelectors(all_logs bool, selectors map[string][]persistence.Selector, msgPrinter *message.Printer) ([]persistence.EventLog, error) {
 	// separate base selectors from the source selectors
 	base_selectors, source_selectors := persistence.GroupSelectors(selectors)
 
-	evlogs := make([]EventLog, 0)
+	evlogs := make([]persistence.EventLog, 0)
 
 	last_unreg := uint64(0)
 	if !all_logs {
-		if l, err := GetLastUnregistrationTime(db); err != nil {
+		if l, err := persistence.GetLastUnregistrationTime(db); err != nil {
 			return nil, fmt.Errorf("Faild to get the last unregistration time stamp from db. %v", err)
 		} else {
 			last_unreg = l
@@ -183,10 +189,10 @@ func (db *AgentBoltDB) FindEventLogsWithSelectors(all_logs bool, selectors map[s
 	// fetch logs
 	readErr := db.db.View(func(tx *bolt.Tx) error {
 
-		if b := tx.Bucket([]byte(EVENT_LOGS)); b != nil {
+		if b := tx.Bucket([]byte(persistence.EVENT_LOGS)); b != nil {
 			b.ForEach(func(k, v []byte) error {
 
-				var el EventLogRaw
+				var el persistence.EventLogRaw
 
 				if err := json.Unmarshal(v, &el); err != nil {
 					glog.Errorf("Unable to deserialize event log db record: %v. Error: %v", v, err)
@@ -199,7 +205,7 @@ func (db *AgentBoltDB) FindEventLogsWithSelectors(all_logs bool, selectors map[s
 					}
 
 					if (all_logs || el.Timestamp > last_unreg) && el.EventLogBase.Matches(base_selectors) {
-						if esrc, err := GetRealEventSource(el.SourceType, el.Source); err != nil {
+						if esrc, err := persistence.GetRealEventSource(el.SourceType, el.Source); err != nil {
 							glog.Errorf("Unable to convert event source: %v. Error: %v", el.Source, err)
 						} else if (*esrc).Matches(source_selectors) {
 							pel := newEventLog1(el.Severity, el.Message, el.MessageMeta, el.EventCode, el.SourceType, *esrc)
@@ -224,21 +230,21 @@ func (db *AgentBoltDB) FindEventLogsWithSelectors(all_logs bool, selectors map[s
 }
 
 // find all event logs from the db
-func (db *AgentBoltDB) FindAllEventLogs() ([]EventLog, error) {
-	evlogs := make([]EventLog, 0)
+func (db *AgentBoltDB) FindAllEventLogs() ([]persistence.EventLog, error) {
+	evlogs := make([]persistence.EventLog, 0)
 
 	// fetch logs
 	readErr := db.db.View(func(tx *bolt.Tx) error {
 
-		if b := tx.Bucket([]byte(EVENT_LOGS)); b != nil {
+		if b := tx.Bucket([]byte(persistence.EVENT_LOGS)); b != nil {
 			b.ForEach(func(k, v []byte) error {
 
-				var el EventLogRaw
+				var el persistence.EventLogRaw
 
 				if err := json.Unmarshal(v, &el); err != nil {
 					glog.Errorf("Unable to deserialize event log db record: %v. Error: %v", v, err)
 				} else {
-					if esrc, err := GetRealEventSource(el.SourceType, el.Source); err != nil {
+					if esrc, err := persistence.GetRealEventSource(el.SourceType, el.Source); err != nil {
 						glog.Errorf("Unable to convert event source: %v. Error: %v", el.Source, err)
 					} else {
 						pel := newEventLog1(el.Severity, el.Message, el.MessageMeta, el.EventCode, el.SourceType, *esrc)
@@ -261,3 +267,19 @@ func (db *AgentBoltDB) FindAllEventLogs() ([]EventLog, error) {
 		return evlogs, nil
 	}
 }
+
+// repeated method
+func newEventLog1(severity string, message string, message_meta *persistence.MessageMeta, event_code string, source_type string, source persistence.EventSourceInterface) *persistence.EventLog {
+	return &persistence.EventLog{
+		EventLogBase: persistence.EventLogBase{
+			Timestamp:   uint64(time.Now().Unix()),
+			Severity:    severity,
+			Message:     message,
+			EventCode:   event_code,
+			SourceType:  source_type,
+			MessageMeta: message_meta,
+		},
+		Source: source,
+	}
+}
+

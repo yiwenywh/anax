@@ -73,6 +73,7 @@ func (e ExchangeDevice) GetId() string {
 	return fmt.Sprintf("%v/%v", e.Org, e.Id)
 }
 
+/***
 func newExchangeDevice(id string, token string, name string, nodeType string, tokenLastValidTime uint64, ha bool, org string, pattern string, configstate string) (*ExchangeDevice, error) {
 	if id == "" || token == "" || name == "" || tokenLastValidTime == 0 || org == "" {
 		return nil, errors.New("Cannot create exchange device, illegal arguments")
@@ -102,6 +103,7 @@ func newExchangeDevice(id string, token string, name string, nodeType string, to
 		Config:             cfg,
 	}, nil
 }
+***/
 
 func (e *ExchangeDevice) GetNodeType() string {
 	if e.NodeType == "" {
@@ -211,3 +213,4 @@ func MigrateExchangeDevice(db AgentDatabase) (bool, error) {
 	}
 	return usingPattern, nil
 }
+

@@ -127,8 +127,83 @@ func (c EstablishedAgreement) String() string {
 
 }
 
+type EstablishedAgreement_Old struct {
+	Name                         string   `json:"name"`
+	SensorUrl                    []string `json:"sensor_url"`
+	Archived                     bool     `json:"archived"`
+	CurrentAgreementId           string   `json:"current_agreement_id"`
+	ConsumerId                   string   `json:"consumer_id"`
+	CounterPartyAddress          string   `json:"counterparty_address"`
+	AgreementCreationTime        uint64   `json:"agreement_creation_time"`
+	AgreementAcceptedTime        uint64   `json:"agreement_accepted_time"`
+	AgreementBCUpdateAckTime     uint64   `json:"agreement_bc_update_ack_time"` // V2 protocol - time when consumer acks our blockchain update
+	AgreementFinalizedTime       uint64   `json:"agreement_finalized_time"`
+	AgreementTerminatedTime      uint64   `json:"agreement_terminated_time"`
+	AgreementForceTerminatedTime uint64   `json:"agreement_force_terminated_time"`
+	AgreementExecutionStartTime  uint64   `json:"agreement_execution_start_time"`
+	AgreementDataReceivedTime    uint64   `json:"agreement_data_received_time"`
+	// One of the following 2 fields are set when the worker that owns deployment for this agreement, starts deploying the services in the agreement.
+	CurrentDeployment               map[string]ServiceConfig `json:"current_deployment"`  // Native Horizon deployment config goes here, mutually exclusive with the extended deployment field. This field is set before the imagefetch worker starts the workload.
+	ExtendedDeployment              map[string]interface{}   `json:"extended_deployment"` // All non-native deployment configs go here.
+	Proposal                        string                   `json:"proposal"`
+	ProposalSig                     string                   `json:"proposal_sig"`           // the proposal currently in effect
+	AgreementProtocol               string                   `json:"agreement_protocol"`     // the agreement protocol being used. It is also in the proposal.
+	ProtocolVersion                 int                      `json:"protocol_version"`       // the agreement protocol version being used.
+	TerminatedReason                uint64                   `json:"terminated_reason"`      // the reason that the agreement was terminated
+	TerminatedDescription           string                   `json:"terminated_description"` // a string form of the reason that the agreement was terminated
+	AgreementProtocolTerminatedTime uint64                   `json:"agreement_protocol_terminated_time"`
+	WorkloadTerminatedTime          uint64                   `json:"workload_terminated_time"`
+	MeteringNotificationMsg         MeteringNotification     `json:"metering_notification,omitempty"` // the most recent metering notification received
+	BlockchainType                  string                   `json:"blockchain_type,omitempty"`       // the name of the type of the blockchain
+	BlockchainName                  string                   `json:"blockchain_name,omitempty"`       // the name of the blockchain instance
+	BlockchainOrg                   string                   `json:"blockchain_org,omitempty"`        // the org of the blockchain instance
+	RunningWorkload                 WorkloadInfo             `json:"workload_to_run,omitempty"`       // For display purposes, a copy of the workload info that this agreement is managing. It should be the same info that is buried inside the proposal.
+}
+
+func (c EstablishedAgreement_Old) String() string {
+
+	return fmt.Sprintf("Name: %v, "+
+		"SensorUrl: %v, "+
+		"Archived: %v, "+
+		"CurrentAgreementId: %v, "+
+		"ConsumerId: %v, "+
+		"CounterPartyAddress: %v, "+
+		"CurrentDeployment (service names): %v, "+
+		"ExtendedDeployment: %v, "+
+		"Proposal Signature: %v, "+
+		"AgreementCreationTime: %v, "+
+		"AgreementExecutionStartTime: %v, "+
+		"AgreementAcceptedTime: %v, "+
+		"AgreementBCUpdateAckTime: %v, "+
+		"AgreementFinalizedTime: %v, "+
+		"AgreementDataReceivedTime: %v, "+
+		"AgreementTerminatedTime: %v, "+
+		"AgreementForceTerminatedTime: %v, "+
+		"TerminatedReason: %v, "+
+		"TerminatedDescription: %v, "+
+		"Agreement Protocol: %v, "+
+		"Agreement ProtocolVersion: %v, "+
+		"AgreementProtocolTerminatedTime : %v, "+
+		"WorkloadTerminatedTime: %v, "+
+		"MeteringNotificationMsg: %v, "+
+		"BlockchainType: %v, "+
+		"BlockchainName: %v, "+
+		"BlockchainOrg: %v",
+		c.Name, c.SensorUrl, c.Archived, c.CurrentAgreementId, c.ConsumerId, c.CounterPartyAddress, ServiceConfigNames(&c.CurrentDeployment),
+		c.ExtendedDeployment, c.ProposalSig,
+		c.AgreementCreationTime, c.AgreementExecutionStartTime, c.AgreementAcceptedTime, c.AgreementBCUpdateAckTime, c.AgreementFinalizedTime,
+		c.AgreementDataReceivedTime, c.AgreementTerminatedTime, c.AgreementForceTerminatedTime, c.TerminatedReason, c.TerminatedDescription,
+		c.AgreementProtocol, c.ProtocolVersion, c.AgreementProtocolTerminatedTime, c.WorkloadTerminatedTime,
+		c.MeteringNotificationMsg, c.BlockchainType, c.BlockchainName, c.BlockchainOrg)
+
+}
+
 func NewEstablishedAgreement(db AgentDatabase, name string, agreementId string, consumerId string, proposal string, protocol string, protocolVersion int, dependentSvcs ServiceSpecs, signature string, address string, bcType string, bcName string, bcOrg string, wi *WorkloadInfo, agreementTimeout uint64) (*EstablishedAgreement, error) {
 	return db.NewEstablishedAgreement(name, agreementId, consumerId, proposal, protocol, protocolVersion, dependentSvcs, signature, address, bcType, bcName, bcOrg, wi,agreementTimeout)
+}
+
+func NewEstablishedAgreement_Old(db AgentDatabase, name string, agreementId string, consumerId string, proposal string, protocol string, protocolVersion int, sensorUrl []string, signature string, address string, bcType string, bcName string, bcOrg string, wi *WorkloadInfo) (*EstablishedAgreement_Old, error) {
+	return db.NewEstablishedAgreement_Old(name, agreementId, consumerId, proposal, protocol, protocolVersion, sensorUrl, signature, address, bcType, bcName, bcOrg, wi)
 }
 
 func (c *EstablishedAgreement) ShortString() string {
@@ -519,3 +594,4 @@ func (m MeteringNotification) String() string {
 		m.AgreementHash, m.ConsumerSignature, m.ConsumerAddress, m.ProducerSignature,
 		m.BlockchainType)
 }
+

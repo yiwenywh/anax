@@ -19,7 +19,7 @@ type AgentDatabase interface {
 
 	FindAttributeByKey(attributeid string) (*Attribute, error)
 	FindApplicableAttributes(serviceUrl string, org string) ([]Attribute, error)
-	UpdateAttribute(attributeid string, attr *Attribute) (*Attribute, error)
+	UpdateAttribute(attributeid string, attr *Attribute) error
 	DeleteAttribute(attributeid string) (*Attribute, error)
 
 	SaveContainerVolume(container_volume *ContainerVolume) error
@@ -72,6 +72,7 @@ type AgentDatabase interface {
 	FindEstablishedAgreements(protocol string, filters []EAFilter) ([]EstablishedAgreement, error)
 	DeleteEstablishedAgreement(agreementId string, protocol string) error
 	PersistUpdatedAgreement(dbAgreementId string, protocol string, update *EstablishedAgreement) error
+	NewEstablishedAgreement_Old(name string, agreementId string, consumerId string, proposal string, protocol string, protocolVersion int, sensorUrl []string, signature string, address string, bcType string, bcName string, bcOrg string, wi *WorkloadInfo) (*EstablishedAgreement_Old, error)   // used in unit test, should be here?
 
 	SaveMSSInst(new_secret_status_inst *MicroserviceSecretStatusInst) (*MicroserviceSecretStatusInst, error)
 	FindMSSInstWithKey(ms_inst_key string) (*MicroserviceSecretStatusInst, error)

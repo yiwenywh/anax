@@ -7,25 +7,30 @@ import (
 	"github.com/golang/glog"
 	"time"
 	bolt "go.etcd.io/bbolt"
+	"github.com/open-horizon/anax/persistence"
 )
 
-func (db *AgentBoltDB) UpdateExchangeDevice(self *ExchangeDevice, deviceId string, invalidateToken bool, fn func(d ExchangeDevice) *ExchangeDevice) (*ExchangeDevice, error) {
+func init() {   // TODO: is this the right place to do init?
+	persistence.Register("bolt", new(AgentBoltDB))
+}
+
+func (db *AgentBoltDB) UpdateExchangeDevice(self *persistence.ExchangeDevice, deviceId string, invalidateToken bool, fn func(d persistence.ExchangeDevice) *persistence.ExchangeDevice) (*persistence.ExchangeDevice, error) {
 	if deviceId == "" {
 		return nil, fmt.Errorf("Illegal arguments specified.")
 	}
 
 	update := fn(*self)
 
-	var mod ExchangeDevice
+	var mod persistence.ExchangeDevice
 
 	return &mod, db.db.Update(func(tx *bolt.Tx) error {
-		b, err := tx.CreateBucketIfNotExists([]byte(DEVICES))
+		b, err := tx.CreateBucketIfNotExists([]byte(persistence.DEVICES))
 		if err != nil {
 			return err
 		}
 
 		// b/c it's only possible to save one device in the bucket, we use "DEVICES" as the key name
-		current := b.Get([]byte(DEVICES))
+		current := b.Get([]byte(persistence.DEVICES))
 
 		if current == nil {
 			return fmt.Errorf("No device with given device id to update: %v", deviceId)
@@ -69,8 +74,8 @@ func (db *AgentBoltDB) UpdateExchangeDevice(self *ExchangeDevice, deviceId strin
 
 			if serialized, err := json.Marshal(mod); err != nil {
 				return fmt.Errorf("Failed to serialize device record: %v. Error: %v", mod, err)
-			} else if err := b.Put([]byte(DEVICES), serialized); err != nil {
-				return fmt.Errorf("Failed to write device record with key: %v. Error: %v", DEVICES, err)
+			} else if err := b.Put([]byte(persistence.DEVICES), serialized); err != nil {
+				return fmt.Errorf("Failed to write device record with key: %v. Error: %v", persistence.DEVICES, err)
 			} else {
 				glog.V(2).Infof("Succeeded updating device record to %v", mod)
 				return nil
@@ -79,7 +84,7 @@ func (db *AgentBoltDB) UpdateExchangeDevice(self *ExchangeDevice, deviceId strin
 	})
 }
 
-func (db *AgentBoltDB) (id string, token string, name string, nodeType string, ha bool, organization string, pattern string, configstate string) (*ExchangeDevice, error) {
+func (db *AgentBoltDB) SaveNewExchangeDevice (id string, token string, name string, nodeType string, ha bool, organization string, pattern string, configstate string) (*persistence.ExchangeDevice, error) {
 	if id == "" || token == "" || name == "" || organization == "" || configstate == "" {
 		return nil, errors.New("Argument null and must not be")
 	}
@@ -87,7 +92,7 @@ func (db *AgentBoltDB) (id string, token string, name string, nodeType string, h
 	duplicate := false
 
 	dErr := db.db.View(func(tx *bolt.Tx) error {
-		bd := tx.Bucket([]byte(DEVICES))
+		bd := tx.Bucket([]byte(persistence.DEVICES))
 		if bd != nil {
 			duplicate = (bd.Get([]byte(name)) != nil)
 		}
@@ -109,7 +114,7 @@ func (db *AgentBoltDB) (id string, token string, name string, nodeType string, h
 	}
 
 	writeErr := db.db.Update(func(tx *bolt.Tx) error {
-		b, err := tx.CreateBucketIfNotExists([]byte(DEVICES))
+		b, err := tx.CreateBucketIfNotExists([]byte(persistence.DEVICES))
 		if err != nil {
 			return err
 		}
@@ -119,20 +124,20 @@ func (db *AgentBoltDB) (id string, token string, name string, nodeType string, h
 		if serial, err := json.Marshal(&exDevice); err != nil {
 			return fmt.Errorf("Failed to serialize device: %v. Error: %v", exDevice, err)
 		} else {
-			return b.Put([]byte(DEVICES), serial)
+			return b.Put([]byte(persistence.DEVICES), serial)
 		}
 	})
 
 	return exDevice, writeErr
 }
 
-func (db *AgentBoltDB) FindExchangeDevice() (*ExchangeDevice, error) {
-	devices := make([]ExchangeDevice, 0)
+func (db *AgentBoltDB) FindExchangeDevice() (*persistence.ExchangeDevice, error) {
+	devices := make([]persistence.ExchangeDevice, 0)
 
 	readErr := db.db.View(func(tx *bolt.Tx) error {
-		if b := tx.Bucket([]byte(DEVICES)); b != nil {
+		if b := tx.Bucket([]byte(persistence.DEVICES)); b != nil {
 			return b.ForEach(func(k, v []byte) error {
-				var dev ExchangeDevice
+				var dev persistence.ExchangeDevice
 
 				if err := json.Unmarshal(v, &dev); err != nil {
 					return fmt.Errorf("Unable to deserializer db record: %v", v)
@@ -155,12 +160,12 @@ func (db *AgentBoltDB) FindExchangeDevice() (*ExchangeDevice, error) {
 	} else if len(devices) == 1 {
 		// convert the pattern string to standard "org/pattern" format.
 		if devices[0].Pattern != "" {
-			_, _, pattern := GetFormatedPatternString(devices[0].Pattern, devices[0].Org)
+			_, _, pattern := persistence.GetFormatedPatternString(devices[0].Pattern, devices[0].Org)
 			devices[0].Pattern = pattern
 		}
 
 		if devices[0].NodeType == "" {
-			devices[0].NodeType = DEVICE_TYPE_DEVICE
+			devices[0].NodeType = persistence.DEVICE_TYPE_DEVICE
 		}
 		return &devices[0], nil
 	} else {
@@ -169,7 +174,7 @@ func (db *AgentBoltDB) FindExchangeDevice() (*ExchangeDevice, error) {
 }
 
 func (db *AgentBoltDB) DeleteExchangeDevice() error {
-	if dev, err := FindExchangeDevice(db); err != nil {
+	if dev, err := db.FindExchangeDevice(); err != nil {
 		return err
 	} else if dev == nil {
 		return fmt.Errorf("could not find record for device")
@@ -177,13 +182,43 @@ func (db *AgentBoltDB) DeleteExchangeDevice() error {
 
 		return db.db.Update(func(tx *bolt.Tx) error {
 
-			if b, err := tx.CreateBucketIfNotExists([]byte(DEVICES)); err != nil {
+			if b, err := tx.CreateBucketIfNotExists([]byte(persistence.DEVICES)); err != nil {
 				return err
-			} else if err := b.Delete([]byte(DEVICES)); err != nil {
+			} else if err := b.Delete([]byte(persistence.DEVICES)); err != nil {
 				return fmt.Errorf("Unable to delete horizon device object: %v", err)
 			} else {
 				return nil
 			}
 		})
 	}
+}
+
+func newExchangeDevice(id string, token string, name string, nodeType string, tokenLastValidTime uint64, ha bool, org string, pattern string, configstate string) (*persistence.ExchangeDevice, error) {
+	if id == "" || token == "" || name == "" || tokenLastValidTime == 0 || org == "" {
+		return nil, errors.New("Cannot create exchange device, illegal arguments")
+	}
+
+	cfg := persistence.Configstate{
+		State:          configstate,
+		LastUpdateTime: uint64(time.Now().Unix()),
+	}
+
+	// make the pattern to the standard "org/pattern" format
+	if pattern != "" {
+		_, _, pat := persistence.GetFormatedPatternString(pattern, org)
+		pattern = pat
+	}
+
+	return &persistence.ExchangeDevice{
+		Id:                 id,
+		Name:               name,
+		NodeType:           nodeType,
+		Token:              token,
+		TokenLastValidTime: tokenLastValidTime,
+		TokenValid:         true,
+		HA:                 ha,
+		Org:                org,
+		Pattern:            pattern,
+		Config:             cfg,
+	}, nil
 }

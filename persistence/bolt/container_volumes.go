@@ -5,12 +5,17 @@ import (
 	"fmt"
 	bolt "go.etcd.io/bbolt"
 	"github.com/golang/glog"
+	"github.com/open-horizon/anax/persistence"
 	"strconv"
 )
 
-func (db *AgentBoltDB) SaveContainerVolume(container_volume *ContainerVolume) error {
+func init() {   // TODO: is this the right place to do init?
+	persistence.Register("bolt", new(AgentBoltDB))
+}
+
+func (db *AgentBoltDB) SaveContainerVolume(container_volume *persistence.ContainerVolume) error {
 	writeErr := db.db.Update(func(tx *bolt.Tx) error {
-		if bucket, err := tx.CreateBucketIfNotExists([]byte(CONTAINER_VOLUMES)); err != nil {
+		if bucket, err := tx.CreateBucketIfNotExists([]byte(persistence.CONTAINER_VOLUMES)); err != nil {
 			return err
 		} else {
 			// use the old key if it has one, otherwise generate one
@@ -35,16 +40,16 @@ func (db *AgentBoltDB) SaveContainerVolume(container_volume *ContainerVolume) er
 	return writeErr
 }
 
-func (db *AgentBoltDB) FindContainerVolumes(filters []ContainerVolumeFilter) ([]ContainerVolume, error) {
-	cvs := make([]ContainerVolume, 0)
+func (db *AgentBoltDB) FindContainerVolumes(filters []persistence.ContainerVolumeFilter) ([]persistence.ContainerVolume, error) {
+	cvs := make([]persistence.ContainerVolume, 0)
 
 	// fetch container volumes
 	readErr := db.db.View(func(tx *bolt.Tx) error {
 
-		if b := tx.Bucket([]byte(CONTAINER_VOLUMES)); b != nil {
+		if b := tx.Bucket([]byte(persistence.CONTAINER_VOLUMES)); b != nil {
 			b.ForEach(func(k, v []byte) error {
 
-				var cv ContainerVolume
+				var cv persistence.ContainerVolume
 
 				if err := json.Unmarshal(v, &cv); err != nil {
 					glog.Errorf("Unable to deserialize ContainerVolume db record: %v. Error: %v", v, err)

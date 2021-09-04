@@ -9,18 +9,21 @@ import (
 	"github.com/open-horizon/anax/externalpolicy"
 	_ "github.com/open-horizon/anax/externalpolicy/text_language"
 	"github.com/open-horizon/anax/persistence"
+	"github.com/open-horizon/anax/persistence/bolt"
 	"io/ioutil"
 	"os"
-	"path"
 	"strings"
 	"testing"
-	"time"
 )
 
 var ExchangeNodePolicyLastUpdated = ""
 var ExchangeNodePolicy *externalpolicy.ExternalPolicy
 
 const NUM_BUILT_INS = 5
+
+func init() {   // TODO: is this the right place to do init?
+	persistence.Register("bolt", new(bolt.AgentBoltDB))
+}
 
 // Verify that a Node Policy Object can be created and saved the first time.
 func Test_UpdateNodePolicy(t *testing.T) {
@@ -319,7 +322,14 @@ func utsetup() (string, persistence.AgentDatabase, error) {
 		return "", nil, err
 	}
 
-	db, err := bolt.Open(path.Join(dir, "anax-int.db"), 0600, &bolt.Options{Timeout: 10 * time.Second})
+	config := config.HorizonConfig{
+		Edge: config.Config{
+		  DBPath: dir,
+		},
+	}
+
+	db, err := persistence.InitDatabase(&config)		
+	//db, err := bolt.Open(path.Join(dir, "anax-int.db"), 0600, &bolt.Options{Timeout: 10 * time.Second})
 	if err != nil {
 		return dir, nil, err
 	}
@@ -336,3 +346,4 @@ func cleanTestDir(dirPath string) error {
 	}
 	return nil
 }
+

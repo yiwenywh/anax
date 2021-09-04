@@ -7,12 +7,17 @@ import (
 	"github.com/golang/glog"
 	"strconv"
 	bolt "go.etcd.io/bbolt"
+	"github.com/open-horizon/anax/persistence"
 )
 
+func init() {   // TODO: is this the right place to do init?
+	persistence.Register("bolt", new(AgentBoltDB))
+}
+
 // save the microservice record. update if it already exists in the db
-func (db *AgentBoltDB) SaveOrUpdateMicroserviceDef(msdef *MicroserviceDefinition) error {
+func (db *AgentBoltDB) SaveOrUpdateMicroserviceDef(msdef *persistence.MicroserviceDefinition) error {
 	writeErr := db.db.Update(func(tx *bolt.Tx) error {
-		if bucket, err := tx.CreateBucketIfNotExists([]byte(MICROSERVICE_DEFINITIONS)); err != nil {
+		if bucket, err := tx.CreateBucketIfNotExists([]byte(persistence.MICROSERVICE_DEFINITIONS)); err != nil {
 			return err
 		} else if nextKey, err := bucket.NextSequence(); err != nil {
 			return fmt.Errorf("Unable to get sequence key for new msdef %v. Error: %v", msdef, err)
@@ -34,17 +39,17 @@ func (db *AgentBoltDB) SaveOrUpdateMicroserviceDef(msdef *MicroserviceDefinition
 }
 
 // find the microservice definition from the db
-func (db *AgentBoltDB) FindMicroserviceDefWithKey(key string) (*MicroserviceDefinition, error) {
-	var pms *MicroserviceDefinition
+func (db *AgentBoltDB) FindMicroserviceDefWithKey(key string) (*persistence.MicroserviceDefinition, error) {
+	var pms *persistence.MicroserviceDefinition
 	pms = nil
 
 	// fetch microservice definitions
 	readErr := db.db.View(func(tx *bolt.Tx) error {
 
-		if b := tx.Bucket([]byte(MICROSERVICE_DEFINITIONS)); b != nil {
+		if b := tx.Bucket([]byte(persistence.MICROSERVICE_DEFINITIONS)); b != nil {
 			v := b.Get([]byte(key))
 
-			var ms MicroserviceDefinition
+			var ms persistence.MicroserviceDefinition
 
 			if err := json.Unmarshal(v, &ms); err != nil {
 				glog.Errorf("Unable to deserialize service definition db record: %v. Error: %v", v, err)
@@ -66,16 +71,16 @@ func (db *AgentBoltDB) FindMicroserviceDefWithKey(key string) (*MicroserviceDefi
 }
 
 // find the microservice instance from the db
-func (db *AgentBoltDB) FindMicroserviceDefs(filters []MSFilter) ([]MicroserviceDefinition, error) {
-	ms_defs := make([]MicroserviceDefinition, 0)
+func (db *AgentBoltDB) FindMicroserviceDefs(filters []persistence.MSFilter) ([]persistence.MicroserviceDefinition, error) {
+	ms_defs := make([]persistence.MicroserviceDefinition, 0)
 
 	// fetch contracts
 	readErr := db.db.View(func(tx *bolt.Tx) error {
 
-		if b := tx.Bucket([]byte(MICROSERVICE_DEFINITIONS)); b != nil {
+		if b := tx.Bucket([]byte(persistence.MICROSERVICE_DEFINITIONS)); b != nil {
 			b.ForEach(func(k, v []byte) error {
 
-				var e MicroserviceDefinition
+				var e persistence.MicroserviceDefinition
 
 				if err := json.Unmarshal(v, &e); err != nil {
 					glog.Errorf("Unable to deserialize db record: %v", v)
@@ -106,17 +111,17 @@ func (db *AgentBoltDB) FindMicroserviceDefs(filters []MSFilter) ([]MicroserviceD
 }
 
 // find the microservice instance from the db
-func (db *AgentBoltDB) FindMicroserviceInstance(url string, org string, version string, instance_id string) (*MicroserviceInstance, error) {
-	var pms *MicroserviceInstance
+func (db *AgentBoltDB) FindMicroserviceInstance(url string, org string, version string, instance_id string) (*persistence.MicroserviceInstance, error) {
+	var pms *persistence.MicroserviceInstance
 	pms = nil
 
 	// fetch microservice instances
 	readErr := db.db.View(func(tx *bolt.Tx) error {
 
-		if b := tx.Bucket([]byte(MICROSERVICE_INSTANCES)); b != nil {
+		if b := tx.Bucket([]byte(persistence.MICROSERVICE_INSTANCES)); b != nil {
 			b.ForEach(func(k, v []byte) error {
 
-				var ms MicroserviceInstance
+				var ms persistence.MicroserviceInstance
 
 				if err := json.Unmarshal(v, &ms); err != nil {
 					glog.Errorf("Unable to deserialize service_instance db record: %v", v)
@@ -142,20 +147,20 @@ func (db *AgentBoltDB) FindMicroserviceInstance(url string, org string, version 
 }
 
 // find the microservice instance from the db
-func (db *AgentBoltDB) FindMicroserviceInstanceWithKey(key string) (*MicroserviceInstance, error) {
-	var pms *MicroserviceInstance
+func (db *AgentBoltDB) FindMicroserviceInstanceWithKey(key string) (*persistence.MicroserviceInstance, error) {
+	var pms *persistence.MicroserviceInstance
 	pms = nil
 
 	// fetch microservice instances
 	readErr := db.db.View(func(tx *bolt.Tx) error {
 
-		if b := tx.Bucket([]byte(MICROSERVICE_INSTANCES)); b != nil {
+		if b := tx.Bucket([]byte(persistence.MICROSERVICE_INSTANCES)); b != nil {
 			v := b.Get([]byte(key))
 			if v == nil {
 				return nil
 			}
 
-			var ms MicroserviceInstance
+			var ms persistence.MicroserviceInstance
 
 			if err := json.Unmarshal(v, &ms); err != nil {
 				glog.Errorf("Unable to deserialize service instance db record: %v. Error: %v", v, err)
@@ -177,16 +182,16 @@ func (db *AgentBoltDB) FindMicroserviceInstanceWithKey(key string) (*Microservic
 }
 
 // find the microservice instance from the db
-func (db *AgentBoltDB) FindMicroserviceInstances(filters []MIFilter) ([]MicroserviceInstance, error) {
-	ms_instances := make([]MicroserviceInstance, 0)
+func (db *AgentBoltDB) FindMicroserviceInstances(filters []persistence.MIFilter) ([]persistence.MicroserviceInstance, error) {
+	ms_instances := make([]persistence.MicroserviceInstance, 0)
 
 	// fetch contracts
-	readErr := db.View(func(tx *bolt.Tx) error {
+	readErr := db.db.View(func(tx *bolt.Tx) error {
 
-		if b := tx.Bucket([]byte(MICROSERVICE_INSTANCES)); b != nil {
+		if b := tx.Bucket([]byte(persistence.MICROSERVICE_INSTANCES)); b != nil {
 			b.ForEach(func(k, v []byte) error {
 
-				var e MicroserviceInstance
+				var e persistence.MicroserviceInstance
 
 				if err := json.Unmarshal(v, &e); err != nil {
 					glog.Errorf("Unable to deserialize db record: %v", v)
@@ -217,19 +222,19 @@ func (db *AgentBoltDB) FindMicroserviceInstances(filters []MIFilter) ([]Microser
 }
 
 // delete a microservice instance from db. It will NOT return error if it does not exist in the db
-func (db *AgentBoltDB) DeleteMicroserviceInstance(key string) (*MicroserviceInstance, error) {
+func (db *AgentBoltDB) DeleteMicroserviceInstance(key string) (*persistence.MicroserviceInstance, error) {
 
 	if key == "" {
 		return nil, errors.New("key is empty, cannot remove")
 	} else {
-		if ms, err := FindMicroserviceInstanceWithKey(key); err != nil {
+		if ms, err := db.FindMicroserviceInstanceWithKey(key); err != nil {
 			return nil, err
 		} else if ms == nil {
 			return nil, nil
 		} else {
 			return ms, db.db.Update(func(tx *bolt.Tx) error {
 
-				if b, err := tx.CreateBucketIfNotExists([]byte(MICROSERVICE_INSTANCES)); err != nil {
+				if b, err := tx.CreateBucketIfNotExists([]byte(persistence.MICROSERVICE_INSTANCES)); err != nil {
 					return err
 				} else if err := b.Delete([]byte(key)); err != nil {
 					return fmt.Errorf("Unable to delete service instance %v: %v", key, err)
@@ -242,13 +247,13 @@ func (db *AgentBoltDB) DeleteMicroserviceInstance(key string) (*MicroserviceInst
 }
 
 // does whole-member replacements of values that are legal to change
-func (db *AgentBoltDB) PersistUpdatedMicroserviceDef(key string, update *MicroserviceDefinition) error {
+func (db *AgentBoltDB) PersistUpdatedMicroserviceDef(key string, update *persistence.MicroserviceDefinition) error {
 	return db.db.Update(func(tx *bolt.Tx) error {
-		if b, err := tx.CreateBucketIfNotExists([]byte(MICROSERVICE_DEFINITIONS)); err != nil {
+		if b, err := tx.CreateBucketIfNotExists([]byte(persistence.MICROSERVICE_DEFINITIONS)); err != nil {
 			return err
 		} else {
 			current := b.Get([]byte(key))
-			var mod MicroserviceDefinition
+			var mod persistence.MicroserviceDefinition
 
 			if current == nil {
 				return fmt.Errorf("No service with given key available to update: %v", key)
@@ -310,13 +315,13 @@ func (db *AgentBoltDB) PersistUpdatedMicroserviceDef(key string, update *Microse
 }
 
 // does whole-member replacements of values that are legal to change
-func (db *AgentBoltDB) PersistUpdatedMicroserviceInstance(key string, update *MicroserviceInstance) error {
+func (db *AgentBoltDB) PersistUpdatedMicroserviceInstance(key string, update *persistence.MicroserviceInstance) error {
 	return db.db.Update(func(tx *bolt.Tx) error {
-		if b, err := tx.CreateBucketIfNotExists([]byte(MICROSERVICE_INSTANCES)); err != nil {
+		if b, err := tx.CreateBucketIfNotExists([]byte(persistence.MICROSERVICE_INSTANCES)); err != nil {
 			return err
 		} else {
 			current := b.Get([]byte(key))
-			var mod MicroserviceInstance
+			var mod persistence.MicroserviceInstance
 
 			if current == nil {
 				return fmt.Errorf("No service with given key available to update: %v", key)
@@ -366,9 +371,9 @@ func (db *AgentBoltDB) PersistUpdatedMicroserviceInstance(key string, update *Mi
 }
 
 // save the given microservice instance into the db
-func (db *AgentBoltDB) SaveMicroserviceInstance(new_inst *MicroserviceInstance) (*MicroserviceInstance, error) {
+func (db *AgentBoltDB) SaveMicroserviceInstance(new_inst *persistence.MicroserviceInstance) (*persistence.MicroserviceInstance, error) {
 	return new_inst, db.db.Update(func(tx *bolt.Tx) error {
-		if b, err := tx.CreateBucketIfNotExists([]byte(MICROSERVICE_INSTANCES)); err != nil {
+		if b, err := tx.CreateBucketIfNotExists([]byte(persistence.MICROSERVICE_INSTANCES)); err != nil {
 			return err
 		} else if bytes, err := json.Marshal(new_inst); err != nil {
 			return fmt.Errorf("Unable to marshal new record: %v", err)
