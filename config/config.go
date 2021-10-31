@@ -154,6 +154,10 @@ func (c *HorizonConfig) IsBoltDBConfigured() bool {
 	return len(c.AgreementBot.DBPath) != 0
 }
 
+func (c *HorizonConfig) IsAgentBoltDBConfigured() bool {
+	return len(c.Edge.DBPath) != 0
+}
+
 func (c *HorizonConfig) IsPostgresqlConfigured() bool {
 	return (c.AgreementBot.Postgresql != (PostgresqlConfig{})) && (c.GetPartitionStale() != 0)
 }

@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"github.com/adams-sarah/test2doc/test"
-	"github.com/boltdb/bolt"
 	"github.com/golang/glog"
 	"github.com/gorilla/mux"
 	"github.com/open-horizon/anax/apicommon"
@@ -69,13 +68,20 @@ func serial(t *testing.T, attrInput []byte) []byte {
 	return serialized
 }
 
-func setup() (string, *bolt.DB, error) {
+func setup() (string, persistence.AgentDatabase, error) {
 	dir, err := ioutil.TempDir("", "api-attribute-")
 	if err != nil {
 		return "", nil, err
 	}
 
-	db, err := bolt.Open(path.Join(dir, "anax-int.db"), 0600, &bolt.Options{Timeout: 10 * time.Second})
+	config := HorizonConfig{
+		Edge: Config{
+		  DBPath: dir,
+		},
+	}
+
+	db, err := persistence.InitDatabase(config)
+	//db, err := bolt.Open(path.Join(dir, "anax-int.db"), 0600, &bolt.Options{Timeout: 10 * time.Second})
 	if err != nil {
 		return dir, nil, err
 	}

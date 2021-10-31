@@ -3,7 +3,6 @@ package api
 import (
 	"errors"
 	"fmt"
-	"github.com/boltdb/bolt"
 	"github.com/golang/glog"
 	"github.com/open-horizon/anax/compcheck"
 	"github.com/open-horizon/anax/config"
@@ -33,7 +32,7 @@ func ValidStateChange(from string, to string) bool {
 	return false
 }
 
-func FindConfigstateForOutput(db *bolt.DB) (*Configstate, error) {
+func FindConfigstateForOutput(db persistence.AgentDatabase) (*Configstate, error) {
 
 	var device *HorizonDevice
 
@@ -65,7 +64,7 @@ func UpdateConfigstate(cfg *Configstate,
 	getService exchange.ServiceHandler,
 	getDevice exchange.DeviceHandler,
 	patchDevice exchange.PatchDeviceHandler,
-	db *bolt.DB,
+	db persistence.AgentDatabase,
 	config *config.HorizonConfig) (bool, *Configstate, []*events.PolicyCreatedMessage) {
 
 	// Check for the device in the local database. If there are errors, they will be written
@@ -190,7 +189,7 @@ func UpdateConfigstate(cfg *Configstate,
 }
 
 // check if the node has the 'openhorizon.allowPrivileged' set to true
-func nodeAllowPrivilegedService(db *bolt.DB) (bool, error) {
+func nodeAllowPrivilegedService(db persistence.AgentDatabase) (bool, error) {
 	nodePol, err := FindNodePolicyForOutput(db)
 	if err != nil {
 		return false, err
@@ -218,7 +217,7 @@ func configureService(service *Service,
 	mergedUserInput *policy.UserInput,
 	errorhandler ErrorHandler,
 	msgs *[]*events.PolicyCreatedMessage,
-	db *bolt.DB,
+	db persistence.AgentDatabase,
 	config *config.HorizonConfig) bool {
 
 	var createServiceError error
@@ -279,7 +278,7 @@ func configureService(service *Service,
 
 // This function verifies that if the given workload needs variable configuration, that there is a workloadconfig
 // object holding that config.
-func workloadConfigPresent(sd *exchange.ServiceDefinition, wUrl string, wOrg, wVersion string, patternUserInput []policy.UserInput, db *bolt.DB) (bool, error) {
+func workloadConfigPresent(sd *exchange.ServiceDefinition, wUrl string, wOrg, wVersion string, patternUserInput []policy.UserInput, db persistence.AgentDatabase) (bool, error) {
 	if sd == nil {
 		return true, nil
 	}
@@ -333,7 +332,7 @@ func getSpecRefsForPattern(nodeType string, patName string,
 	patOrg string,
 	getPatterns exchange.PatternHandler,
 	resolveService exchange.ServiceDefResolverHandler,
-	db *bolt.DB,
+	db persistence.AgentDatabase,
 	config *config.HorizonConfig,
 	checkWorkloadConfig bool,
 	checkNodePrivilege bool) (*policy.APISpecList, *exchange.Pattern, error) {

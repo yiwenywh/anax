@@ -3,13 +3,15 @@
 package persistence
 
 import (
-	"github.com/boltdb/bolt"
+	"github.com/open-horizon/anax/config"	
 	"io/ioutil"
 	"os"
-	"path"
 	"testing"
-	"time"
 )
+
+/**func init() {   // TODO: is this the right place to do init?
+	Register("bolt", new(bolt.AgentBoltDB))
+}**/
 
 // Parent and child, simple case.
 func Test_ServiceInstancePath_HasDirectParent_simple(t *testing.T) {
@@ -372,13 +374,20 @@ func Test_UpdateMSInstanceRemoveDependencyPath2(t *testing.T) {
 }
 
 // Utility functions needed by tests
-func utsetup() (string, *bolt.DB, error) {
+func utsetup() (string, AgentDatabase, error) {
 	dir, err := ioutil.TempDir("", "utdb-")
 	if err != nil {
 		return "", nil, err
 	}
 
-	db, err := bolt.Open(path.Join(dir, "anax-ut.db"), 0600, &bolt.Options{Timeout: 10 * time.Second})
+	config := config.HorizonConfig{
+		Edge: config.Config{
+		  DBPath: dir,
+		},
+	}
+
+	db, err := InitDatabase(&config)	
+	//db, err := bolt.Open(path.Join(dir, "anax-ut.db"), 0600, &bolt.Options{Timeout: 10 * time.Second})
 	if err != nil {
 		return dir, nil, err
 	}
@@ -395,3 +404,4 @@ func cleanTestDir(dirPath string) error {
 	}
 	return nil
 }
+

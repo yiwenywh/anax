@@ -3,7 +3,6 @@ package api
 import (
 	"errors"
 	"fmt"
-	"github.com/boltdb/bolt"
 	"github.com/golang/glog"
 	"github.com/open-horizon/anax/cutil"
 	"github.com/open-horizon/anax/events"
@@ -16,7 +15,7 @@ import (
 )
 
 // Return an empty user input object or the object that's in the local database.
-func FindNodeUserInputForOutput(db *bolt.DB) ([]policy.UserInput, error) {
+func FindNodeUserInputForOutput(db persistence.AgentDatabase) ([]policy.UserInput, error) {
 
 	if userInput, err := persistence.FindNodeUserInput(db); err != nil {
 		return nil, errors.New(fmt.Sprintf("unable to read node user input object, error %v", err))
@@ -33,7 +32,7 @@ func UpdateNodeUserInput(userInput []policy.UserInput,
 	getDevice exchange.DeviceHandler,
 	patchDevice exchange.PatchDeviceHandler,
 	getService exchange.ServiceHandler,
-	db *bolt.DB) (bool, []policy.UserInput, []*events.NodeUserInputMessage) {
+	db persistence.AgentDatabase) (bool, []policy.UserInput, []*events.NodeUserInputMessage) {
 
 	// Check for the device in the local database. If there are errors, they will be written
 	// to the HTTP response.
@@ -72,7 +71,7 @@ func PatchNodeUserInput(patchObject []policy.UserInput,
 	getDevice exchange.DeviceHandler,
 	patchDevice exchange.PatchDeviceHandler,
 	getService exchange.ServiceHandler,
-	db *bolt.DB) (bool, []policy.UserInput, []*events.NodeUserInputMessage) {
+	db persistence.AgentDatabase) (bool, []policy.UserInput, []*events.NodeUserInputMessage) {
 
 	pDevice, err := persistence.FindExchangeDevice(db)
 	if err != nil {
@@ -108,7 +107,7 @@ func PatchNodeUserInput(patchObject []policy.UserInput,
 }
 
 // Delete the node policy object.
-func DeleteNodeUserInput(errorhandler DeviceErrorHandler, db *bolt.DB,
+func DeleteNodeUserInput(errorhandler DeviceErrorHandler, db persistence.AgentDatabase,
 	getDevice exchange.DeviceHandler,
 	patchDevice exchange.PatchDeviceHandler) (bool, []*events.NodeUserInputMessage) {
 

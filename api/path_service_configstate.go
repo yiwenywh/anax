@@ -2,7 +2,6 @@ package api
 
 import (
 	"fmt"
-	"github.com/boltdb/bolt"
 	"github.com/golang/glog"
 	"github.com/open-horizon/anax/cutil"
 	"github.com/open-horizon/anax/events"
@@ -12,7 +11,7 @@ import (
 )
 
 // get the service configuration state for all the registered services.
-func FindServiceConfigStateForOutput(errorhandler ErrorHandler, getServicesConfigState exchange.ServicesConfigStateHandler, db *bolt.DB) (bool, map[string][]exchange.ServiceConfigState) {
+func FindServiceConfigStateForOutput(errorhandler ErrorHandler, getServicesConfigState exchange.ServicesConfigStateHandler, db persistence.AgentDatabase) (bool, map[string][]exchange.ServiceConfigState) {
 
 	// Check for the device in the local database. If there are errors, they will be written
 	// to the HTTP response.
@@ -42,7 +41,7 @@ func ChangeServiceConfigState(service_cs *exchange.ServiceConfigState,
 	errorhandler ErrorHandler,
 	getDevice exchange.DeviceHandler,
 	postDeviceSCS exchange.PostDeviceServicesConfigStateHandler,
-	db *bolt.DB) (bool, []events.ServiceConfigState) {
+	db persistence.AgentDatabase) (bool, []events.ServiceConfigState) {
 
 	// Check for the device in the local database. If there are errors, they will be written
 	// to the HTTP response.

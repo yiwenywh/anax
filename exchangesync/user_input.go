@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/boltdb/bolt"
 	"github.com/golang/glog"
 	"github.com/open-horizon/anax/exchange"
 	"github.com/open-horizon/anax/persistence"
@@ -18,7 +17,7 @@ import (
 var nodeUserInputUpdateLock sync.Mutex //The lock that protects the hash value
 
 // Gets all the UserInputAttriutues from the DB and convert then into
-func SyncLocalUserInputWithExchange(db *bolt.DB, pDevice *persistence.ExchangeDevice, getDevice exchange.DeviceHandler) (bool, persistence.ServiceSpecs, error) {
+func SyncLocalUserInputWithExchange(db persistence.AgentDatabase, pDevice *persistence.ExchangeDevice, getDevice exchange.DeviceHandler) (bool, persistence.ServiceSpecs, error) {
 
 	glog.V(4).Infof("Checking the node user input changes.")
 
@@ -97,7 +96,7 @@ func HashUserInput(ui []policy.UserInput) ([]byte, error) {
 // If the exchange has node user input for this node, sync it to the local node.
 // All UserInputAttributes will be removed.
 // Exchange is the master.
-func NodeUserInputInitalSetup(db *bolt.DB,
+func NodeUserInputInitalSetup(db persistence.AgentDatabase,
 	patchDevice exchange.PatchDeviceHandler) error {
 
 	glog.V(3).Infof("Node user input initial setup.")
@@ -151,7 +150,7 @@ func NodeUserInputInitalSetup(db *bolt.DB,
 }
 
 // check if the node user input has been changed from last sync.
-func ExchangeNodeUserInputChanged(pDevice *persistence.ExchangeDevice, db *bolt.DB, getDevice exchange.DeviceHandler) (bool, []policy.UserInput, error) {
+func ExchangeNodeUserInputChanged(pDevice *persistence.ExchangeDevice, db persistence.AgentDatabase, getDevice exchange.DeviceHandler) (bool, []policy.UserInput, error) {
 
 	// get the node user input from the exchange
 	var exchDevice *exchange.Device
@@ -294,7 +293,7 @@ func GetChangedServices(oldUserInput, newUserInput []policy.UserInput) persisten
 }
 
 // Delete the node user input from local db and the exchange
-func DeleteNodeUserInput(pDevice *persistence.ExchangeDevice, db *bolt.DB,
+func DeleteNodeUserInput(pDevice *persistence.ExchangeDevice, db persistence.AgentDatabase,
 	getDevice exchange.DeviceHandler,
 	patchDevice exchange.PatchDeviceHandler) error {
 
@@ -304,7 +303,7 @@ func DeleteNodeUserInput(pDevice *persistence.ExchangeDevice, db *bolt.DB,
 }
 
 // Update (create new or replace) node user input on local db and the exchange
-func UpdateNodeUserInput(pDevice *persistence.ExchangeDevice, db *bolt.DB,
+func UpdateNodeUserInput(pDevice *persistence.ExchangeDevice, db persistence.AgentDatabase,
 	userInputs []policy.UserInput,
 	getDevice exchange.DeviceHandler,
 	patchDevice exchange.PatchDeviceHandler) (persistence.ServiceSpecs, error) {
@@ -332,7 +331,7 @@ func UpdateNodeUserInput(pDevice *persistence.ExchangeDevice, db *bolt.DB,
 }
 
 // Add the given user input to the exchange node user input.
-func PatchNodeUserInput(pDevice *persistence.ExchangeDevice, db *bolt.DB,
+func PatchNodeUserInput(pDevice *persistence.ExchangeDevice, db persistence.AgentDatabase,
 	userInputs []policy.UserInput,
 	getDevice exchange.DeviceHandler,
 	patchDevice exchange.PatchDeviceHandler) error {
@@ -360,7 +359,7 @@ func PatchNodeUserInput(pDevice *persistence.ExchangeDevice, db *bolt.DB,
 }
 
 // This fuction saves the given user input into exchange, and local db
-func SaveNodeUserInput(pDevice *persistence.ExchangeDevice, db *bolt.DB,
+func SaveNodeUserInput(pDevice *persistence.ExchangeDevice, db persistence.AgentDatabase,
 	userInputs []policy.UserInput,
 	getDevice exchange.DeviceHandler,
 	patchDevice exchange.PatchDeviceHandler) error {

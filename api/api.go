@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/boltdb/bolt"
 	"github.com/golang/glog"
 	"github.com/gorilla/mux"
 	"github.com/open-horizon/anax/apicommon"
@@ -20,7 +19,7 @@ import (
 type API struct {
 	worker.Manager // embedded field
 	name           string
-	db             *bolt.DB
+	db             persistence.AgentDatabase
 	pm             *policy.PolicyManager
 	em             *events.EventStateManager
 	bcState        map[string]map[string]apicommon.BlockchainState
@@ -36,7 +35,7 @@ type BlockchainState struct {
 	servicePort string // the network port of the container
 }
 
-func NewAPIListener(name string, cfg *config.HorizonConfig, db *bolt.DB, pm *policy.PolicyManager) *API {
+func NewAPIListener(name string, cfg *config.HorizonConfig, db persistence.AgentDatabase, pm *policy.PolicyManager) *API {
 	messages := make(chan events.Message)
 
 	listener := &API{

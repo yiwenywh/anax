@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/boltdb/bolt"
 	"github.com/golang/glog"
 	"github.com/open-horizon/anax/agreement"
 	"github.com/open-horizon/anax/agreementbot"
@@ -33,7 +32,6 @@ import (
 	"runtime"
 	"runtime/pprof"
 	"syscall"
-	"time"
 )
 
 // The core of anax is an event handling system that distributes events to workers, where the workers
@@ -71,27 +69,22 @@ func main() {
 	i18n.InitMessagePrinter(true)
 
 	// open edge DB if necessary
-	var db *bolt.DB
-	if len(cfg.Edge.DBPath) != 0 {
-		if err := os.MkdirAll(cfg.Edge.DBPath, 0700); err != nil {
-			panic(err)
-		}
-
-		edgeDB, err := bolt.Open(path.Join(cfg.Edge.DBPath, "anax.db"), 0600, &bolt.Options{Timeout: 10 * time.Second})
-		if err != nil {
-			panic(err)
-		}
-		db = edgeDB
+	var db persistence.AgentDatabase
+	db, dberr := persistence.InitDatabase(cfg)
+	if db == nil && dberr != nil {
+		panic(fmt.Sprintf("Unable to initialize Agent database: %v", dberr))
+	} else if db != nil && dberr != nil {
+		glog.Warningf("Unable to initialize Agent database on this node: %v", dberr)
 	}
 
 	// open Agreement Bot DB if necessary
 
 	var agbotDB agbotPersistence.AgbotDatabase
-	agbotDB, dberr := agbotPersistence.InitDatabase(cfg)
-	if db == nil && dberr != nil {
-		panic(fmt.Sprintf("Unable to initialize Agreement Bot: %v", dberr))
-	} else if db != nil && dberr != nil {
-		glog.Warningf("Unable to initialize Agreement Bot database on this node: %v", dberr)
+	agbotDB, agbotDBdberr := agbotPersistence.InitDatabase(cfg)
+	if agbotDB == nil && agbotDBdberr != nil {
+		panic(fmt.Sprintf("Unable to initialize Agreement Bot: %v", agbotDBdberr))
+	} else if agbotDB != nil && agbotDBdberr != nil {
+		glog.Warningf("Unable to initialize Agreement Bot database on this node: %v", agbotDBdberr)
 	}
 
 	// Initialize the secrets implementation

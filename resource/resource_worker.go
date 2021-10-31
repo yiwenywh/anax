@@ -3,7 +3,6 @@ package resource
 import (
 	"errors"
 	"fmt"
-	"github.com/boltdb/bolt"
 	"github.com/golang/glog"
 	"github.com/open-horizon/anax/config"
 	"github.com/open-horizon/anax/events"
@@ -13,12 +12,12 @@ import (
 
 type ResourceWorker struct {
 	worker.BaseWorker // embedded field
-	db                *bolt.DB
+	db                persistence.AgentDatabase
 	rm                *ResourceManager
 	am                *AuthenticationManager
 }
 
-func NewResourceWorker(name string, config *config.HorizonConfig, db *bolt.DB, am *AuthenticationManager) *ResourceWorker {
+func NewResourceWorker(name string, config *config.HorizonConfig, db persistence.AgentDatabase, am *AuthenticationManager) *ResourceWorker {
 
 	var ec *worker.BaseExchangeContext
 	var rm *ResourceManager

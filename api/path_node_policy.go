@@ -3,7 +3,6 @@ package api
 import (
 	"errors"
 	"fmt"
-	"github.com/boltdb/bolt"
 	"github.com/open-horizon/anax/events"
 	"github.com/open-horizon/anax/exchange"
 	"github.com/open-horizon/anax/exchangesync"
@@ -12,7 +11,7 @@ import (
 )
 
 // Return an empty policy object or the object that's in the local database.
-func FindNodePolicyForOutput(db *bolt.DB) (*externalpolicy.ExternalPolicy, error) {
+func FindNodePolicyForOutput(db persistence.AgentDatabase) (*externalpolicy.ExternalPolicy, error) {
 
 	if extPolicy, err := persistence.FindNodePolicy(db); err != nil {
 		return nil, errors.New(fmt.Sprintf("unable to read node policy object, error %v", err))
@@ -31,7 +30,7 @@ func UpdateNodePolicy(nodePolicy *externalpolicy.ExternalPolicy,
 	errorhandler DeviceErrorHandler,
 	nodeGetPolicyHandler exchange.NodePolicyHandler,
 	nodePutPolicyHandler exchange.PutNodePolicyHandler,
-	db *bolt.DB) (bool, *externalpolicy.ExternalPolicy, []*events.NodePolicyMessage) {
+	db persistence.AgentDatabase) (bool, *externalpolicy.ExternalPolicy, []*events.NodePolicyMessage) {
 
 	// Check for the device in the local database. If there are errors, they will be written
 	// to the HTTP response.
@@ -58,7 +57,7 @@ func PatchNodePolicy(patchObject interface{},
 	errorhandler DeviceErrorHandler,
 	nodeGetPolicyHandler exchange.NodePolicyHandler,
 	nodePatchPolicyHandler exchange.PutNodePolicyHandler,
-	db *bolt.DB) (bool, *externalpolicy.ExternalPolicy, []*events.NodePolicyMessage) {
+	db persistence.AgentDatabase) (bool, *externalpolicy.ExternalPolicy, []*events.NodePolicyMessage) {
 
 	pDevice, err := persistence.FindExchangeDevice(db)
 	if err != nil {
@@ -79,7 +78,7 @@ func PatchNodePolicy(patchObject interface{},
 }
 
 // Delete the node policy object.
-func DeleteNodePolicy(errorhandler DeviceErrorHandler, db *bolt.DB,
+func DeleteNodePolicy(errorhandler DeviceErrorHandler, db persistence.AgentDatabase,
 	nodeGetPolicyHandler exchange.NodePolicyHandler,
 	nodeDeletePolicyHandler exchange.DeleteNodePolicyHandler) (bool, []*events.NodePolicyMessage) {
 

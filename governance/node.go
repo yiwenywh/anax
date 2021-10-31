@@ -3,7 +3,6 @@ package governance
 import (
 	"errors"
 	"fmt"
-	"github.com/boltdb/bolt"
 	"github.com/golang/glog"
 	"github.com/open-horizon/anax/api"
 	"github.com/open-horizon/anax/config"
@@ -315,7 +314,7 @@ func ValidateNewPattern(nodeType string, new_pattern string,
 	getPatterns exchange.PatternHandler,
 	serviceResolver exchange.ServiceResolverHandler,
 	getService exchange.ServiceHandler,
-	db *bolt.DB,
+	db persistence.AgentDatabase,
 	config *config.HorizonConfig) error {
 
 	glog.V(3).Infof(logString(fmt.Sprintf("Validating new pattern %v", new_pattern)))
@@ -430,7 +429,7 @@ func ValidateNewPattern(nodeType string, new_pattern string,
 // This function validats if there is enough user input for the given service.
 // The given mergedUserInput is the merged user input from node and pattern.
 // The user input from attribute will be added to it before checking.
-func ValidateUserInput(sdef *exchange.ServiceDefinition, serviceOrg string, mergedUserInput []policy.UserInput, db *bolt.DB) error {
+func ValidateUserInput(sdef *exchange.ServiceDefinition, serviceOrg string, mergedUserInput []policy.UserInput, db persistence.AgentDatabase) error {
 	glog.V(5).Infof(logString(fmt.Sprintf("Start validating userinput for service %v/%v", serviceOrg, sdef.URL)))
 
 	if !sdef.NeedsUserInput() {

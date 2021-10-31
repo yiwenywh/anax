@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/boltdb/bolt"
 	"github.com/golang/glog"
 	"github.com/open-horizon/anax/cutil"
 	"github.com/open-horizon/anax/events"
@@ -134,7 +133,7 @@ func ConvertRequiredServicesToExchange(m *persistence.MicroserviceDefinition) *[
 }
 
 // check if the given msdef is eligible for a upgrade
-func MicroserviceReadyForUpgrade(msdef *persistence.MicroserviceDefinition, db *bolt.DB) bool {
+func MicroserviceReadyForUpgrade(msdef *persistence.MicroserviceDefinition, db persistence.AgentDatabase) bool {
 	glog.V(5).Infof("Check if service %v/%v is available for a upgrade.", msdef.Org, msdef.SpecRef)
 
 	if msdef.Archived {
@@ -187,7 +186,7 @@ func MicroserviceReadyForUpgrade(msdef *persistence.MicroserviceDefinition, db *
 // This function gets the msdef with highest version within defined version range from the exchange and
 // compare the version and content with the current msdef and decide if it needs to upgrade.
 // It returns the new msdef if the old one needs to be upgraded, otherwide return nil.
-func GetUpgradeMicroserviceDef(getService exchange.ServiceResolverHandler, msdef *persistence.MicroserviceDefinition, db *bolt.DB) (*persistence.MicroserviceDefinition, error) {
+func GetUpgradeMicroserviceDef(getService exchange.ServiceResolverHandler, msdef *persistence.MicroserviceDefinition, db persistence.AgentDatabase) (*persistence.MicroserviceDefinition, error) {
 	glog.V(3).Infof("Get new service def for upgrading service %v/%v version %v key %v", msdef.Org, msdef.SpecRef, msdef.Version, msdef.Id)
 
 	// convert the sensor version to a version expression
@@ -232,7 +231,7 @@ func GetUpgradeMicroserviceDef(getService exchange.ServiceResolverHandler, msdef
 }
 
 // Get a msdef with a lower version compared to the given msdef version and return the new microservice def.
-func GetRollbackMicroserviceDef(getService exchange.ServiceResolverHandler, msdef *persistence.MicroserviceDefinition, db *bolt.DB) (*persistence.MicroserviceDefinition, error) {
+func GetRollbackMicroserviceDef(getService exchange.ServiceResolverHandler, msdef *persistence.MicroserviceDefinition, db persistence.AgentDatabase) (*persistence.MicroserviceDefinition, error) {
 	glog.V(3).Infof("Get next highest service def for rolling back service %v/%v version %v key %v", msdef.Org, msdef.SpecRef, msdef.Version, msdef.Id)
 
 	// convert the sensor version to a version expression
@@ -292,7 +291,7 @@ func RemoveMicroservicePolicy(spec_ref string, org string, version string, msdef
 }
 
 // Generate a new policy file for given ms and then register the microservice in the exchange.
-func GenMicroservicePolicy(msdef *persistence.MicroserviceDefinition, policyPath string, db *bolt.DB, e chan events.Message, deviceOrg string, pattern string) error {
+func GenMicroservicePolicy(msdef *persistence.MicroserviceDefinition, policyPath string, db persistence.AgentDatabase, e chan events.Message, deviceOrg string, pattern string) error {
 	glog.V(3).Infof("Generate policy for the given service %v/%v version %v key %v", msdef.Org, msdef.SpecRef, msdef.Version, msdef.Id)
 
 	var haPartner []string
@@ -389,7 +388,7 @@ func GenMicroservicePolicy(msdef *persistence.MicroserviceDefinition, policyPath
 func UnregisterMicroserviceExchange(getExchangeDevice exchange.DeviceHandler,
 	patchExchangeDevice exchange.PatchDeviceHandler,
 	spec_ref string, org string, version string,
-	device_id string, device_token string, db *bolt.DB) error {
+	device_id string, device_token string, db persistence.AgentDatabase) error {
 
 	glog.V(3).Infof("Unregister service %v/%v from exchange for %v.", org, spec_ref, device_id)
 
@@ -429,7 +428,7 @@ func UnregisterMicroserviceExchange(getExchangeDevice exchange.DeviceHandler,
 // If exactVersion is false, the service_version is treated as a version range,
 // the microservice definiton within the range will be returned if found instances. If not found,
 // the microservice definition for the highest version within the range will be returned.
-func FindOrCreateMicroserviceDef(db *bolt.DB, service_name string, service_org string, service_version string, service_arch string,
+func FindOrCreateMicroserviceDef(db persistence.AgentDatabase, service_name string, service_org string, service_version string, service_arch string,
 	exactVersion bool, forPattern bool, getService exchange.ServiceHandler) (*persistence.MicroserviceDefinition, error) {
 	glog.V(5).Infof("Find or create MicroserviceDefinition object for %v/%v version %v", service_org, service_name, service_version)
 
@@ -529,7 +528,7 @@ func FindOrCreateMicroserviceDef(db *bolt.DB, service_name string, service_org s
 
 // Create and save the MicroserviceDefiniton for given service. The service_version is a version range.
 // Please make sure there is no MicroserviceDefinition for this service before calling this function.
-func CreateMicroserviceDef(db *bolt.DB, service_name string, service_org string, service_version string, service_arch string,
+func CreateMicroserviceDef(db persistence.AgentDatabase, service_name string, service_org string, service_version string, service_arch string,
 	getService exchange.ServiceHandler) (*persistence.MicroserviceDefinition, error) {
 	glog.V(3).Infof("Create service definition for local db for %v/%v version range %v.", service_org, service_name, service_version)
 
@@ -559,7 +558,7 @@ func CreateMicroserviceDef(db *bolt.DB, service_name string, service_org string,
 // for top level service when agreement is formated. The version is not a version range.
 // upgradeVerExpr is a full semantic version expression, representing upgrade or downgrade version range.
 // Please make sure there is no MicroserviceDefinition for this service before calling this function.
-func CreateMicroserviceDefWithServiceDef(db *bolt.DB, sdef *exchange.ServiceDefinition, sId string, upgradeVerExpr string) (*persistence.MicroserviceDefinition, error) {
+func CreateMicroserviceDefWithServiceDef(db persistence.AgentDatabase, sdef *exchange.ServiceDefinition, sId string, upgradeVerExpr string) (*persistence.MicroserviceDefinition, error) {
 	glog.V(3).Infof("Create service definition in local db for for %v", sId)
 
 	// Convert the service definition to a persistent format so that it can be saved to the db.

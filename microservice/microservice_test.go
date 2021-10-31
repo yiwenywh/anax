@@ -4,19 +4,22 @@ package microservice
 
 import (
 	"fmt"
-	"github.com/boltdb/bolt"
+	"github.com/open-horizon/anax/config"	
 	"github.com/open-horizon/anax/cutil"
 	"github.com/open-horizon/anax/exchange"
 	"github.com/open-horizon/anax/exchangecommon"
 	"github.com/open-horizon/anax/persistence"
+	"github.com/open-horizon/anax/persistence/bolt"	
 	"github.com/open-horizon/anax/policy"
 	"github.com/stretchr/testify/assert"
 	"io/ioutil"
 	"os"
-	"path"
 	"testing"
-	"time"
 )
+
+func init() {   // TODO: is this the right place to do init?
+	persistence.Register("bolt", new(bolt.AgentBoltDB))
+}
 
 func TestConvertToPersistent(t *testing.T) {
 	pms := createService(t)
@@ -324,13 +327,20 @@ func getVariableDeviceHandler(mss []exchange.Microservice, ss []exchange.Microse
 	}
 }
 
-func setupDB() (string, *bolt.DB, error) {
+func setupDB() (string, persistence.AgentDatabase, error) {
 	dir, err := ioutil.TempDir("", "container-")
 	if err != nil {
 		return "", nil, err
 	}
 
-	db, err := bolt.Open(path.Join(dir, "anax-int.db"), 0600, &bolt.Options{Timeout: 10 * time.Second})
+	config := config.HorizonConfig{
+		Edge: config.Config{
+		  DBPath: dir,
+		},
+	}
+
+	db, err := persistence.InitDatabase(&config)	
+	//db, err := bolt.Open(path.Join(dir, "anax-int.db"), 0600, &bolt.Options{Timeout: 10 * time.Second})
 	if err != nil {
 		return dir, nil, err
 	}
@@ -341,3 +351,4 @@ func setupDB() (string, *bolt.DB, error) {
 func cleanupDB(dir string) error {
 	return os.RemoveAll(dir)
 }
+

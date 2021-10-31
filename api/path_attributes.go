@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"reflect"
 
-	"github.com/boltdb/bolt"
 	"github.com/golang/glog"
 	"github.com/open-horizon/anax/persistence"
 	"github.com/open-horizon/anax/policy"
@@ -573,7 +572,7 @@ func payloadToAttributes(errorhandler ErrorHandler, body io.Reader, permitPartia
 // serializeAttributeForOutput retrieves attributes by url from the DB and then
 // serializes then as JSON, returning a byte array for convenient writing to an
 // HTTP response.
-func FindAndWrapAttributesForOutput(db *bolt.DB, id string) (map[string][]Attribute, error) {
+func FindAndWrapAttributesForOutput(db persistence.AgentDatabase, id string) (map[string][]Attribute, error) {
 
 	attributes, err := persistence.FindApplicableAttributes(db, "", "")
 	if err != nil {

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/boltdb/bolt"
 	"github.com/golang/glog"
 	"github.com/open-horizon/anax/cli/cliutils"
 	"github.com/open-horizon/anax/cutil"
@@ -20,7 +19,7 @@ import (
 // object because it eventually gets deleted at the end of unconfiguration.
 var Unconfiguring bool
 
-func LogDeviceEvent(db *bolt.DB, severity string, message *persistence.MessageMeta, event_code string, device interface{}) {
+func LogDeviceEvent(db persistence.AgentDatabase, severity string, message *persistence.MessageMeta, event_code string, device interface{}) {
 	id := ""
 	org := ""
 	pattern := ""
@@ -54,7 +53,7 @@ func LogDeviceEvent(db *bolt.DB, severity string, message *persistence.MessageMe
 	eventlog.LogNodeEvent(db, severity, message, event_code, id, org, pattern, state)
 }
 
-func FindHorizonDeviceForOutput(db *bolt.DB) (*HorizonDevice, error) {
+func FindHorizonDeviceForOutput(db persistence.AgentDatabase) (*HorizonDevice, error) {
 
 	var device *HorizonDevice
 
@@ -93,7 +92,7 @@ func CreateHorizonDevice(device *HorizonDevice,
 	patchDeviceHandler exchange.PatchDeviceHandler,
 	getDeviceHandler exchange.DeviceHandler,
 	em *events.EventStateManager,
-	db *bolt.DB) (bool, *HorizonDevice, *HorizonDevice) {
+	db persistence.AgentDatabase) (bool, *HorizonDevice, *HorizonDevice) {
 
 	// Reject the call if the node is restarting.
 	se := events.NewNodeShutdownCompleteMessage(events.UNCONFIGURE_COMPLETE, "")
@@ -257,7 +256,7 @@ func CreateHorizonDevice(device *HorizonDevice,
 func UpdateHorizonDevice(device *HorizonDevice,
 	errorhandler ErrorHandler,
 	getExchangeVersion exchange.ExchangeVersionHandler,
-	db *bolt.DB) (bool, *HorizonDevice, *HorizonDevice) {
+	db persistence.AgentDatabase) (bool, *HorizonDevice, *HorizonDevice) {
 
 	LogDeviceEvent(db, persistence.SEVERITY_INFO, persistence.NewMessageMeta(EL_API_START_NODE_UPDATE, *device.Id), persistence.EC_START_NODE_UPDATE, device)
 
@@ -321,7 +320,7 @@ func DeleteHorizonDevice(removeNode string,
 	em *events.EventStateManager,
 	msgQueue chan events.Message,
 	errorhandler ErrorHandler,
-	db *bolt.DB) bool {
+	db persistence.AgentDatabase) bool {
 
 	LogDeviceEvent(db, persistence.SEVERITY_INFO, persistence.NewMessageMeta(EL_API_START_NODE_UNREG), persistence.EC_START_NODE_UNREG, nil)
 

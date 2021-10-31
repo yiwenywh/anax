@@ -3,7 +3,6 @@ package helm
 import (
 	"errors"
 	"fmt"
-	"github.com/boltdb/bolt"
 	"github.com/golang/glog"
 	"github.com/open-horizon/anax/config"
 	"github.com/open-horizon/anax/events"
@@ -13,10 +12,10 @@ import (
 
 type HelmWorker struct {
 	worker.BaseWorker // embedded field
-	db                *bolt.DB
+	db                persistence.AgentDatabase
 }
 
-func NewHelmWorker(name string, config *config.HorizonConfig, db *bolt.DB) *HelmWorker {
+func NewHelmWorker(name string, config *config.HorizonConfig, db persistence.AgentDatabase) *HelmWorker {
 
 	worker := &HelmWorker{
 		BaseWorker: worker.NewBaseWorker(name, config, nil),

@@ -4,17 +4,17 @@ package eventlog
 
 import (
 	"flag"
-	"github.com/boltdb/bolt"
+	"github.com/open-horizon/anax/config"
 	"github.com/open-horizon/anax/persistence"
+	"github.com/open-horizon/anax/persistence/bolt"
 	"github.com/stretchr/testify/assert"
 	"io/ioutil"
 	"os"
-	"path"
 	"testing"
-	"time"
 )
 
 func init() {
+	persistence.Register("bolt", new(bolt.AgentBoltDB))
 	flag.Set("alsologtostderr", "true")
 	flag.Set("v", "7")
 	// no need to parse flags, that's done by test framework
@@ -504,13 +504,20 @@ func Test_LogExchangeEvent(t *testing.T) {
 
 }
 
-func utsetup() (string, *bolt.DB, error) {
+func utsetup() (string, persistence.AgentDatabase, error) {
 	dir, err := ioutil.TempDir("", "utdb-")
 	if err != nil {
 		return "", nil, err
 	}
 
-	db, err := bolt.Open(path.Join(dir, "anax-int.db"), 0600, &bolt.Options{Timeout: 10 * time.Second})
+	config := config.HorizonConfig{
+		Edge: config.Config{
+		  DBPath: dir,
+		},
+	}
+
+	db, err := persistence.InitDatabase(&config)	
+	//db, err := bolt.Open(path.Join(dir, "anax-int.db"), 0600, &bolt.Options{Timeout: 10 * time.Second})
 	if err != nil {
 		return dir, nil, err
 	}
@@ -527,3 +534,4 @@ func cleanTestDir(dirPath string) error {
 	}
 	return nil
 }
+

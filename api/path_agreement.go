@@ -3,7 +3,6 @@ package api
 import (
 	"errors"
 	"fmt"
-	"github.com/boltdb/bolt"
 	"github.com/golang/glog"
 	"github.com/open-horizon/anax/abstractprotocol"
 	"github.com/open-horizon/anax/events"
@@ -12,7 +11,7 @@ import (
 	"sort"
 )
 
-func FindAgreementsForOutput(db *bolt.DB) (map[string]map[string][]persistence.EstablishedAgreement, error) {
+func FindAgreementsForOutput(db persistence.AgentDatabase) (map[string]map[string][]persistence.EstablishedAgreement, error) {
 
 	agreements, err := persistence.FindEstablishedAgreementsAllProtocols(db, policy.AllAgreementProtocols(), []persistence.EAFilter{})
 	if err != nil {
@@ -48,7 +47,7 @@ func FindAgreementsForOutput(db *bolt.DB) (map[string]map[string][]persistence.E
 	return wrap, nil
 }
 
-func DeleteAgreement(errorhandler ErrorHandler, agreementId string, db *bolt.DB) (bool, *events.ApiAgreementCancelationMessage) {
+func DeleteAgreement(errorhandler ErrorHandler, agreementId string, db persistence.AgentDatabase) (bool, *events.ApiAgreementCancelationMessage) {
 
 	glog.V(3).Infof(apiLogString(fmt.Sprintf("Handling DELETE of agreement: %v", agreementId)))
 

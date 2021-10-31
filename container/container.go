@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/boltdb/bolt"
 	"github.com/coreos/go-iptables/iptables"
 	docker "github.com/fsouza/go-dockerclient"
 	"github.com/golang/glog"
@@ -533,7 +532,7 @@ func GetServerEnginType(client *docker.Client) (string, error) {
 
 type ContainerWorker struct {
 	worker.BaseWorker // embedded field
-	db                *bolt.DB
+	db                persistence.AgentDatabase
 	client            *docker.Client
 	iptables          *iptables.IPTables
 	authMgr           *resource.AuthenticationManager
@@ -584,7 +583,7 @@ func CreateCLIContainerWorker(config *config.HorizonConfig) (*ContainerWorker, e
 	}, nil
 }
 
-func NewContainerWorker(name string, config *config.HorizonConfig, db *bolt.DB, am *resource.AuthenticationManager, sm *resource.SecretsManager) *ContainerWorker {
+func NewContainerWorker(name string, config *config.HorizonConfig, db persistence.AgentDatabase, am *resource.AuthenticationManager, sm *resource.SecretsManager) *ContainerWorker {
 
 	// do not start this container if the the node is registered and the type is cluster
 	dev, _ := persistence.FindExchangeDevice(db)
@@ -2985,7 +2984,7 @@ func (b *ContainerWorker) ConnectContainerToNetwork(network *docker.Network, con
 }
 
 // Delete the docker volumes that are created by anax
-func DeleteLeftoverDockerVolumes(db *bolt.DB, config *config.HorizonConfig) error {
+func DeleteLeftoverDockerVolumes(db persistence.AgentDatabase, config *config.HorizonConfig) error {
 	glog.V(3).Infof("Cleaning up leftover docker volumes created by anax.")
 
 	if config.Edge.DockerEndpoint == "" {

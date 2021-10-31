@@ -3,7 +3,6 @@ package imagefetch
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/boltdb/bolt"
 	docker "github.com/fsouza/go-dockerclient"
 	"github.com/golang/glog"
 	"github.com/open-horizon/anax/config"
@@ -16,11 +15,11 @@ import (
 
 type ImageFetchWorker struct {
 	worker.BaseWorker // embedded field
-	db                *bolt.DB
+	db                persistence.AgentDatabase
 	client            *docker.Client
 }
 
-func NewImageFetchWorker(name string, config *config.HorizonConfig, db *bolt.DB) *ImageFetchWorker {
+func NewImageFetchWorker(name string, config *config.HorizonConfig, db persistence.AgentDatabase) *ImageFetchWorker {
 
 	// do not start this container if the the node is registered and the type is cluster
 	dev, _ := persistence.FindExchangeDevice(db)
@@ -140,7 +139,7 @@ func AppendDockerAuth(dockerAuths map[string][]docker.AuthConfiguration, auth do
 }
 
 // append the auth attribute to the given auth maps
-func authAttributes(db *bolt.DB, dockerAuthConfigurations map[string][]docker.AuthConfiguration) error {
+func authAttributes(db persistence.AgentDatabase, dockerAuthConfigurations map[string][]docker.AuthConfiguration) error {
 
 	// assemble credentials from attributes
 	attributes, err := persistence.FindApplicableAttributes(db, "", "")
@@ -192,7 +191,7 @@ func processDeployment(cfg *config.HorizonConfig, containerConfig events.Contain
 	return pemFiles, &deploymentDesc, nil
 }
 
-func processFetch(cfg *config.HorizonConfig, client *docker.Client, db *bolt.DB, deploymentDesc *containermessage.DeploymentDescription, imageDockerAuths []events.ImageDockerAuth) error {
+func processFetch(cfg *config.HorizonConfig, client *docker.Client, db persistence.AgentDatabase, deploymentDesc *containermessage.DeploymentDescription, imageDockerAuths []events.ImageDockerAuth) error {
 	if client == nil {
 		return fmt.Errorf("Docker client is nil. Please make sure DockerEndpoint is set in the configuration file.")
 	}
@@ -214,7 +213,7 @@ func processFetch(cfg *config.HorizonConfig, client *docker.Client, db *bolt.DB,
 	return fetchImage(cfg, client, db, deploymentDesc, dockerAuthConfigurations)
 }
 
-func fetchImage(cfg *config.HorizonConfig, client *docker.Client, db *bolt.DB, deploymentDesc *containermessage.DeploymentDescription, dockerAuthConfigurations map[string][]docker.AuthConfiguration) error {
+func fetchImage(cfg *config.HorizonConfig, client *docker.Client, db persistence.AgentDatabase, deploymentDesc *containermessage.DeploymentDescription, dockerAuthConfigurations map[string][]docker.AuthConfiguration) error {
 
 	skipCheckFn := SkipCheckFn(client)
 	// using Docker pull (newer option, uses docker client to pull images from repos in image names in deployment description)

@@ -3,7 +3,6 @@ package api
 import (
 	"errors"
 	"fmt"
-	"github.com/boltdb/bolt"
 	"github.com/golang/glog"
 	"github.com/open-horizon/anax/config"
 	"github.com/open-horizon/anax/cutil"
@@ -21,7 +20,7 @@ import (
 	"strings"
 )
 
-func LogServiceEvent(db *bolt.DB, severity string, message *persistence.MessageMeta, event_code string, service *Service) {
+func LogServiceEvent(db persistence.AgentDatabase, severity string, message *persistence.MessageMeta, event_code string, service *Service) {
 	surl := ""
 	org := ""
 	version := "[0.0.0,INFINITY)"
@@ -44,7 +43,7 @@ func LogServiceEvent(db *bolt.DB, severity string, message *persistence.MessageM
 	eventlog.LogServiceEvent2(db, severity, message, event_code, "", surl, org, version, arch, []string{})
 }
 
-func findPoliciesForOutput(pm *policy.PolicyManager, db *bolt.DB) (map[string]policy.Policy, error) {
+func findPoliciesForOutput(pm *policy.PolicyManager, db persistence.AgentDatabase) (map[string]policy.Policy, error) {
 
 	out := make(map[string]policy.Policy)
 
@@ -74,7 +73,7 @@ func findPoliciesForOutput(pm *policy.PolicyManager, db *bolt.DB) (map[string]po
 	return out, nil
 }
 
-func FindServiceConfigForOutput(pm *policy.PolicyManager, db *bolt.DB) (map[string][]MicroserviceConfig, error) {
+func FindServiceConfigForOutput(pm *policy.PolicyManager, db persistence.AgentDatabase) (map[string][]MicroserviceConfig, error) {
 
 	outConfig := make([]MicroserviceConfig, 0, 10)
 
@@ -140,7 +139,7 @@ func CreateService(service *Service,
 	getDevice exchange.DeviceHandler,
 	patchDevice exchange.PatchDeviceHandler,
 	mergedUserInput *policy.UserInput, //nil for /service/config case. non-nil for auto-complete case to save some getPatterns calls.
-	db *bolt.DB,
+	db persistence.AgentDatabase,
 	config *config.HorizonConfig,
 	from_user bool) (bool, *Service, *events.PolicyCreatedMessage) {
 
@@ -610,7 +609,7 @@ func getExchangePattern(patOrg string, patName string, getPatterns exchange.Patt
 }
 
 // get the merged user input for a service from the pattern and node.
-func getMergedUserInput(patternUserInput []policy.UserInput, svcUrl, svcOrg, svcArch string, db *bolt.DB) (*policy.UserInput, error) {
+func getMergedUserInput(patternUserInput []policy.UserInput, svcUrl, svcOrg, svcArch string, db persistence.AgentDatabase) (*policy.UserInput, error) {
 
 	// get node user input
 	nodeUserInput, err := persistence.FindNodeUserInput(db)

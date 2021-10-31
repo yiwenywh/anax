@@ -14,7 +14,6 @@ require (
 	github.com/docker/docker-credential-helpers v0.6.3 // indirect
 	github.com/docker/go-connections v0.4.1-0.20180821093606-97c2040d34df // indirect
 	github.com/eclipse/paho.mqtt.golang v1.2.0 // indirect
-	github.com/etcd-io/bbolt v1.3.3-0.20190528202153-2eb7227adea1 // indirect
 	github.com/fsouza/go-dockerclient v1.7.2
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
 	github.com/golang/protobuf v1.4.0 // indirect
@@ -38,6 +37,7 @@ require (
 	github.com/satori/go.uuid v1.2.1-0.20181016184021-8ccf5352a842
 	github.com/stretchr/testify v1.4.0
 	github.com/vbatts/tar-split v0.11.1 // indirect
+	go.etcd.io/bbolt v1.3.3 // indirect
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
 	golang.org/x/sys v0.0.0-20210630005230-0f9fa26af87c
 	golang.org/x/text v0.3.6

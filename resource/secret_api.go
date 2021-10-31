@@ -21,7 +21,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/boltdb/bolt"
 	"github.com/golang/glog"
 	"github.com/open-horizon/anax/persistence"
 	"net/http"
@@ -39,7 +38,7 @@ const (
 var unauthorizedBytes = []byte("Unauthorized")
 
 type SecretAPI struct {
-	db            *bolt.DB
+	db            persistence.AgentDatabase
 	authenticator *SecretsAPIAuthenticate
 }
 
@@ -50,7 +49,7 @@ type secretObject struct {
 	Value string `json:"value"`
 }
 
-func NewSecretAPI(db *bolt.DB, am *AuthenticationManager) *SecretAPI {
+func NewSecretAPI(db persistence.AgentDatabase, am *AuthenticationManager) *SecretAPI {
 	auth := &SecretsAPIAuthenticate{
 		AuthMgr: am,
 	}

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/boltdb/bolt"
 	"github.com/golang/glog"
 	"github.com/open-horizon/anax/abstractprotocol"
 	"github.com/open-horizon/anax/cache"
@@ -45,7 +44,7 @@ const EXCHANGE_ERRORS = "ExchangeErrors"
 
 type GovernanceWorker struct {
 	worker.BaseWorker // embedded field
-	db                *bolt.DB
+	db                persistence.AgentDatabase
 	devicePattern     string
 	deviceType        string
 	pm                *policy.PolicyManager
@@ -59,7 +58,7 @@ type GovernanceWorker struct {
 	essCleanedUp      bool
 }
 
-func NewGovernanceWorker(name string, cfg *config.HorizonConfig, db *bolt.DB, pm *policy.PolicyManager) *GovernanceWorker {
+func NewGovernanceWorker(name string, cfg *config.HorizonConfig, db persistence.AgentDatabase, pm *policy.PolicyManager) *GovernanceWorker {
 
 	var ec *worker.BaseExchangeContext
 	var lrec exchange.ExchangeContext

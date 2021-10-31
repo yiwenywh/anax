@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/boltdb/bolt"
 	"github.com/golang/glog"
 	"github.com/open-horizon/anax/abstractprotocol"
 	"github.com/open-horizon/anax/api"
@@ -45,7 +44,7 @@ func MarkI18nMessages() {
 	msgPrinter.Sprintf(EL_PROD_ERR_HANDLE_PROPOSAL)
 }
 
-func CreateProducerPH(name string, cfg *config.HorizonConfig, db *bolt.DB, pm *policy.PolicyManager, ec exchange.ExchangeContext) ProducerProtocolHandler {
+func CreateProducerPH(name string, cfg *config.HorizonConfig, db persistence.AgentDatabase, pm *policy.PolicyManager, ec exchange.ExchangeContext) ProducerProtocolHandler {
 	if handler := NewBasicProtocolHandler(name, cfg, db, pm, ec); handler != nil {
 		return handler
 	} // Add new producer side protocol handlers here
@@ -79,7 +78,7 @@ type ProducerProtocolHandler interface {
 type BaseProducerProtocolHandler struct {
 	name   string
 	pm     *policy.PolicyManager
-	db     *bolt.DB
+	db     persistence.AgentDatabase
 	config *config.HorizonConfig
 	ec     exchange.ExchangeContext
 }
